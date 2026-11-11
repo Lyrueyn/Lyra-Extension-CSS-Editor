@@ -146,7 +146,6 @@
   function bind() {
     $("save").addEventListener("click", saveFile);
     $("format").addEventListener("click", () => { cm.setValue(formatCss(cm.getValue())); markDirty(); updatePreview(); setStatus("已格式化"); });
-    $("comment").addEventListener("click", toggleCssComment);
     $("theme").addEventListener("change", () => applyTheme($("theme").value));
     document.addEventListener("keydown", (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") { event.preventDefault(); saveFile(); } });
     window.addEventListener("message", (event) => {
