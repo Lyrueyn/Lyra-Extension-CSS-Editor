@@ -93,3 +93,5 @@ html[data-theme="light"] .cm-css-error-gutter,html[data-theme="sakura"] .cm-css-
 .problem-pos{color:var(--muted);font:11px/1 Consolas,monospace;text-align:right;white-space:nowrap}
 .problem-source{color:var(--muted);font-size:10px;text-align:right;text-transform:uppercase;letter-spacing:.05em}
 .problem-empty{padding:12px 14px;color:var(--muted);font-size:12px}
+
+.build{font:10px/1 Consolas,monospace;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:2px 5px;margin-left:4px}

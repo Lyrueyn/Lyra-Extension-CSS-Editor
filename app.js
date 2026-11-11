@@ -18,6 +18,12 @@
     try { localStorage.setItem("lyra.css.theme", theme); } catch { }
     if ($("theme")) $("theme").value = theme;
   }
+  function encodeBase64(text) {
+    const bytes = new TextEncoder().encode(String(text || ""));
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(bin);
+  }
   function setStatus(text, error) {
     const el = $("status");
     if (el) { el.textContent = text || ""; el.style.color = error ? "#ff8a8a" : "#8b94a6"; }
@@ -88,7 +94,7 @@
     clearTimeout(state.autoTimer);
     if (!auto) setStatus("正在保存…");
     try {
-      const payload = { data: text };
+      const payload = { data: encodeBase64(text) };
       if (state.path) payload.path = state.path;
       const res = await callHost("host.workspace.save", payload);
       if (!res || res.ok === false) throw new Error((res && res.error) || "保存失败");
