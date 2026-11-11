@@ -508,15 +508,19 @@
     if (!rule.declarations.length) box.innerHTML += '<div class="dev-empty">这个规则块还没有声明</div>';
     for (const decl of rule.declarations) addRuleDeclRow(box, rule, decl.prop, decl.value);
     const add = document.createElement("div"); add.className = "dev-add";
-    add.innerHTML = '<input placeholder="property"><input placeholder="value"><button type="button">+</button>';
+    add.innerHTML = '<input placeholder="属性，如 color"><input placeholder="值，如 #fff"><button type="button" class="dev-add-btn">+ 添加</button>';
     const [pi, vi] = add.querySelectorAll("input");
     add.querySelector("button").addEventListener("click", () => {
       if (!pi.value.trim()) return;
       if (updateRuleDeclarationAt(rule, pi.value.trim(), vi.value.trim())) { state.dirty = true; scheduleAutoSave(); updatePreview(); }
     });
     box.appendChild(add);
+    const hint = document.createElement("div");
+    hint.className = "dev-add-hint";
+    hint.textContent = "按 + 添加后写入当前规则，并自动保存";
+    box.appendChild(hint);
     styleBox.appendChild(box);
-    if (el) {
+    if (el && el.style.length) {
       const inlineWrap = document.createElement("div");
       inlineWrap.className = "dev-inline";
       inlineWrap.innerHTML = '<div class="dev-section-title">element.style</div>';
@@ -558,7 +562,7 @@
       inlineWrap.appendChild(row);
     }
     const add = document.createElement("div"); add.className = "dev-add";
-    add.innerHTML = '<input placeholder="property"><input placeholder="value"><button type="button">+</button>';
+    add.innerHTML = '<input placeholder="属性，如 color"><input placeholder="值，如 #fff"><button type="button" class="dev-add-btn">+ 添加</button>';
     const [pi, vi] = add.querySelectorAll("input");
     add.querySelector("button").addEventListener("click", () => {
       const p = pi.value.trim(), v = vi.value.trim();

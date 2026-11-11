@@ -143,3 +143,10 @@ html[data-theme="light"] .cm-css-error-gutter,html[data-theme="sakura"] .cm-css-
 .dev-empty{color:var(--muted);font-style:italic;padding:4px 0}
 .dev-computed-row{display:grid;grid-template-columns:minmax(110px,180px) 1fr;gap:8px;padding:2px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 45%,transparent)}
 .dev-computed-row .k{color:#9ad4ff}.dev-computed-row .v{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.dev-add-btn{flex:0 0 auto;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);border-radius:4px;font:11px/1.4 system-ui,sans-serif;padding:2px 8px;cursor:pointer;white-space:nowrap}
+.dev-add-btn:hover{background:var(--accent);color:#0a0f15}
+.dev-add-hint{color:var(--muted);font:10px/1.4 system-ui,sans-serif;padding:3px 7px 2px}
+
+.dev-add input{min-width:0;width:0}
+.dev-add-btn{display:inline-block}
