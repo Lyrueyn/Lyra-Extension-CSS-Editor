@@ -290,8 +290,8 @@
     const lint = await fetchStylelint(code);
     if (token !== state.lintSeq) return;
     const useStylelint = !lint.error;
-    const local = collectLocalCssIssues(!useStylelint);
-    let issues = useStylelint ? lint.issues.concat(local) : local;
+    // stylelint 可用时以它为准，避免同一处语法错误重复报两遍；只有 stylelint 不可用时才用内置检查。
+    let issues = useStylelint ? lint.issues.slice() : collectLocalCssIssues(true);
     const seen = new Set();
     issues = issues.filter((it) => {
       const key = it.line + ":" + it.chPos + ":" + it.message;
