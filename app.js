@@ -7,7 +7,7 @@
   const pathParam = params.get("projectEntry") || params.get("path") || "";
   const host = window.chrome && window.chrome.webview;
   const shellPending = new Map();
-  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [] };
+  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false };
   const THEMES = new Set(["lyra", "violet", "emerald", "sunset", "sakura", "light"]);
   let cm = null;
 
@@ -66,6 +66,8 @@
       } catch { }
       cm.setValue(content || "");
       cm.clearHistory();
+      state.lastSaved = content || "";
+      state.dirty = false;
       state.path = res.path || res.rel || state.path;
       $("file").textContent = (res.path || res.rel || state.path || res.name || "CSS");
       if ($("tabName")) $("tabName").textContent = (res.name || String(res.path || res.rel || state.path || "style.css").split(/[\\/]/).pop());
@@ -77,16 +79,34 @@
       setStatus("打开失败：" + (e && e.message ? e.message : e), true);
     }
   }
-  async function saveFile() {
+  async function saveFile(auto) {
+    if (state.saving) return;
+    if (!state.dirty && !auto) { setStatus("没有需要保存的修改"); return; }
+    const text = cm.getValue();
+    if (text === state.lastSaved) { state.dirty = false; return; }
+    state.saving = true;
+    clearTimeout(state.autoTimer);
+    if (!auto) setStatus("正在保存…");
     try {
-      setStatus("正在保存…");
-      const payload = { data: cm.getValue() };
+      const payload = { data: text };
       if (state.path) payload.path = state.path;
       const res = await callHost("host.workspace.save", payload);
       if (!res || res.ok === false) throw new Error((res && res.error) || "保存失败");
-      state.dirty = false;
-      setStatus("已保存");
-    } catch (e) { setStatus("保存失败：" + (e && e.message ? e.message : e), true); }
+      state.lastSaved = text;
+      state.dirty = cm.getValue() !== text;
+      const time = new Date().toTimeString().slice(0, 8);
+      setStatus(auto ? "已自动保存 · " + time : "已保存");
+      if (state.dirty) scheduleAutoSave();
+    } catch (e) {
+      setStatus("保存失败：" + (e && e.message ? e.message : e), true);
+    } finally {
+      state.saving = false;
+    }
+  }
+  function scheduleAutoSave() {
+    clearTimeout(state.autoTimer);
+    if (!state.dirty) return;
+    state.autoTimer = setTimeout(() => { saveFile(true); }, 1000);
   }
   function previewDocument(cssText) {
     const base = "html,body{margin:0}body{padding:34px 38px;font:15px/1.75 system-ui,'Segoe UI','Microsoft YaHei',sans-serif;color:#243447;background:linear-gradient(180deg,#ffffff,#f4f8fd);min-height:100vh}.container{max-width:760px;margin:0 auto}h1{font-size:30px;line-height:1.25;margin:0 0 10px;letter-spacing:-.02em;color:#12263a}h2{font-size:18px;margin:0 0 6px;color:#173a57}p{margin:10px 0;color:#465b70}a{color:#1976d2}code{background:#eef4fb;padding:1px 6px;border-radius:5px;font:12px Consolas,monospace;color:#205a86}.box.card{border:1px solid #dbe7f3;background:#fff;border-radius:12px;padding:18px 20px;margin-top:18px;box-shadow:0 6px 20px rgba(30,80,140,.08)}ul{margin:14px 0;padding-left:22px}li{margin:4px 0}table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}th,td{text-align:left;padding:9px 10px;border-bottom:1px solid #e3edf6}th{background:#f2f7fd;color:#35526a;font-weight:600}button{font:inherit;padding:5px 12px;border:1px solid #c9dced;border-radius:7px;background:#fff;color:#1b5e8c}.row{display:flex;gap:12px;margin-top:16px}.col{flex:1;padding:14px;border:1px dashed #c7d9e9;border-radius:10px;background:#f9fcff;color:#5b7388}";
@@ -261,10 +281,10 @@
   }
 
   function bind() {
-    $("save").addEventListener("click", saveFile);
+    $("save").addEventListener("click", () => saveFile(false));
     $("format").addEventListener("click", () => { cm.setValue(formatCss(cm.getValue())); markDirty(); updatePreview(); setStatus("已格式化"); });
     $("theme").addEventListener("change", () => applyTheme($("theme").value));
-    document.addEventListener("keydown", (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") { event.preventDefault(); saveFile(); } });
+    document.addEventListener("keydown", (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") { event.preventDefault(); clearTimeout(state.autoTimer); state.dirty = cm.getValue() !== state.lastSaved; saveFile(false); } });
     window.addEventListener("message", (event) => {
       const d = event.data || {};
       if (d.type === "theme" && typeof d.theme === "string") applyTheme(d.theme);
@@ -288,7 +308,7 @@
         "Ctrl-G": () => { const n = prompt("跳转到行"); if (n) cm.setCursor({ line: Math.max(0, parseInt(n, 10) - 1), ch: 0 }); },
       },
     });
-    cm.on("change", () => { markDirty(); clearTimeout(state.statusTimer); state.statusTimer = setTimeout(refreshLint, 350); updatePreview(); });
+    cm.on("change", () => { markDirty(); scheduleAutoSave(); clearTimeout(state.statusTimer); state.statusTimer = setTimeout(refreshLint, 350); updatePreview(); });
     cm.setSize("100%", "100%");
   }
   bind();
