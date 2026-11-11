@@ -59,7 +59,8 @@
       cm.setValue(content || "");
       cm.clearHistory();
       state.path = res.path || res.rel || state.path;
-      $("file").textContent = (res.path || res.rel || state.path || res.name || "CSS") + (res.name ? "  ·  " + res.name : "");
+      $("file").textContent = (res.path || res.rel || state.path || res.name || "CSS");
+      if ($("tabName")) $("tabName").textContent = (res.name || String(res.path || res.rel || state.path || "style.css").split(/[\\/]/).pop());
       state.dirty = false;
       setStatus("已加载");
       updatePreview();
@@ -79,7 +80,9 @@
     } catch (e) { setStatus("保存失败：" + (e && e.message ? e.message : e), true); }
   }
   function previewDocument(cssText) {
-    return '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>' + String(cssText || "").replace(/<\/style/gi, "<\\/style") + '</style></head><body><div class="container"><h1>CSS 预览</h1><p>这是示例段落，用来观察颜色、字号、间距和布局。</p><p><a href="#">链接</a> · <button>按钮</button> · <code>code</code></p><div class="box card"><h2>卡片标题</h2><p>Common classes: container, box, card, row, col</p></div><ul><li>列表项 1</li><li>列表项 2</li></ul><table><tr><th>表头</th><th>表头</th></tr><tr><td>内容</td><td>内容</td></tr></table></div></body></html>';
+    const base = "html,body{margin:0}body{padding:34px 38px;font:15px/1.75 system-ui,'Segoe UI','Microsoft YaHei',sans-serif;color:#243447;background:linear-gradient(180deg,#ffffff,#f4f8fd);min-height:100vh}.container{max-width:760px;margin:0 auto}h1{font-size:30px;line-height:1.25;margin:0 0 10px;letter-spacing:-.02em;color:#12263a}h2{font-size:18px;margin:0 0 6px;color:#173a57}p{margin:10px 0;color:#465b70}a{color:#1976d2}code{background:#eef4fb;padding:1px 6px;border-radius:5px;font:12px Consolas,monospace;color:#205a86}.box.card{border:1px solid #dbe7f3;background:#fff;border-radius:12px;padding:18px 20px;margin-top:18px;box-shadow:0 6px 20px rgba(30,80,140,.08)}ul{margin:14px 0;padding-left:22px}li{margin:4px 0}table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}th,td{text-align:left;padding:9px 10px;border-bottom:1px solid #e3edf6}th{background:#f2f7fd;color:#35526a;font-weight:600}button{font:inherit;padding:5px 12px;border:1px solid #c9dced;border-radius:7px;background:#fff;color:#1b5e8c}.row{display:flex;gap:12px;margin-top:16px}.col{flex:1;padding:14px;border:1px dashed #c7d9e9;border-radius:10px;background:#f9fcff;color:#5b7388}";
+    const user = String(cssText || "").replace(/<\/style/gi, "<\\/style");
+    return '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>' + base + '</style><style>' + user + '</style></head><body><div class="container"><h1>CSS 预览</h1><p>这是示例段落，用来观察颜色、字号、间距和布局。</p><p><a href="#">链接</a> · <button>按钮</button> · <code>code</code></p><div class="box card"><h2>卡片标题</h2><p>Common classes: container, box, card, row, col</p></div><div class="row"><div class="col">col 1</div><div class="col">col 2</div></div><ul><li>列表项 1</li><li>列表项 2</li></ul><table><tr><th>表头</th><th>表头</th></tr><tr><td>内容</td><td>内容</td></tr></table></div></body></html>';
   }
   function updatePreview() {
     try { $("preview").srcdoc = previewDocument(cm.getValue()); } catch { }

@@ -2,8 +2,26 @@
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CSS 编辑器</title>
 <link rel="stylesheet" href="vendor/codemirror/codemirror.min.css"><link rel="stylesheet" href="vendor/codemirror/addon/hint/show-hint.min.css"><link rel="stylesheet" href="vendor/codemirror/addon/fold/foldgutter.min.css"><link rel="stylesheet" href="style.css"></head>
 <body>
-<header id="bar"><strong>CSS</strong><button id="save" class="primary">保存</button><button id="format">格式化</button><button id="comment">注释 Ctrl+/</button><span id="file">未打开文件</span><span id="status"></span></header>
-<main id="main"><section id="editorPane"><textarea id="code"></textarea></section><section id="previewPane"><div id="previewHead">预览 <span id="previewInfo"></span></div><iframe id="preview"></iframe></section></main>
+<header id="bar">
+  <div class="brand"><span class="logo">CSS</span><span class="brand-name">样式表编辑器</span></div>
+  <div class="file-wrap"><span class="file-dot"></span><span id="file">未打开文件</span></div>
+  <div class="actions">
+    <button id="save" class="primary">保存</button>
+    <button id="format">格式化</button>
+    <button id="comment">注释 <kbd>Ctrl</kbd><kbd>/</kbd></button>
+  </div>
+  <span id="status" class="status-pill">就绪</span>
+</header>
+<main id="main">
+  <section id="editorPane">
+    <div class="pane-head"><span class="pane-dot"></span><span id="tabName">style.css</span><span class="pane-meta" id="editorMeta">CSS</span></div>
+    <div class="editor-wrap"><textarea id="code"></textarea></div>
+  </section>
+  <section id="previewPane">
+    <div class="pane-head"><span class="pane-dot preview"></span><span>实时预览</span><span class="pane-meta" id="previewInfo">自动刷新</span></div>
+    <div class="preview-card"><iframe id="preview"></iframe></div>
+  </section>
+</main>
 <script src="vendor/codemirror/codemirror.min.js"></script>
 <script src="vendor/codemirror/addon/hint/show-hint.min.js"></script>
 <script src="vendor/codemirror/addon/hint/css-hint.min.js"></script>
@@ -13,5 +31,5 @@
 <script src="vendor/codemirror/addon/edit/matchbrackets.min.js"></script>
 <script src="vendor/codemirror/addon/edit/closebrackets.min.js"></script>
 <script src="vendor/codemirror/mode/css/css.min.js"></script>
-<script src="app.js?v=1.0.1"></script>
+<script src="app.js?v=1.0.2"></script>
 </body></html>
