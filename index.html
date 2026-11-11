@@ -14,25 +14,26 @@
   <span id="status" class="status-pill">就绪</span>
 </header>
 <main id="main">
-  <section id="editorPane">
-    <div class="pane-head"><span class="pane-dot"></span><span id="tabName">style.css</span><span class="pane-meta" id="cursorPos">Ln 1, Col 1</span></div>
-    <div class="editor-wrap"><textarea id="code"></textarea></div>
-
-  </section>
+  <div id="editorColumn">
+    <section id="editorPane">
+      <div class="pane-head"><span class="pane-dot"></span><span id="tabName">style.css</span><span class="pane-meta" id="cursorPos">Ln 1, Col 1</span></div>
+      <div class="editor-wrap"><textarea id="code"></textarea></div>
+    </section>
+    <div id="panelSplitter" title="拖动调整问题面板高度"></div>
+    <div id="problemsPanel" class="problems-panel">
+      <div class="problems-head">
+        <button class="problem-tab active" type="button">问题 <span id="problemCount">0</span></button>
+        <span class="problem-summary" id="problemSummary">未检测到问题</span>
+      </div>
+      <div id="problemsList" class="problems-list"></div>
+    </div>
+  </div>
   <div id="splitter" title="拖动调整宽度"></div>
   <section id="previewPane">
     <div class="pane-head"><span class="pane-dot preview"></span><span>实时预览</span><button id="previewRefresh" class="pane-btn" title="刷新预览">↻</button><span class="pane-meta" id="previewInfo">自动刷新</span></div>
     <div class="preview-card"><iframe id="preview"></iframe></div>
   </section>
 </main>
-<div id="panelSplitter" title="拖动调整问题面板高度"></div>
-<div id="problemsPanel" class="problems-panel">
-  <div class="problems-head">
-    <button class="problem-tab active" type="button">问题 <span id="problemCount">0</span></button>
-    <span class="problem-summary" id="problemSummary">未检测到问题</span>
-  </div>
-  <div id="problemsList" class="problems-list"></div>
-</div>
 <script src="vendor/codemirror/codemirror.min.js"></script>
 <script src="vendor/codemirror/addon/hint/show-hint.min.js"></script>
 <script src="vendor/codemirror/addon/hint/css-hint.min.js"></script>
@@ -42,5 +43,5 @@
 <script src="vendor/codemirror/addon/edit/matchbrackets.min.js"></script>
 <script src="vendor/codemirror/addon/edit/closebrackets.min.js"></script>
 <script src="vendor/codemirror/mode/css/css.min.js"></script>
-<script src="app.js?v=1.0.13"></script>
+<script src="app.js?v=1.0.14"></script>
 </body></html>

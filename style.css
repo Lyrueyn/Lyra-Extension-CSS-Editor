@@ -5,19 +5,20 @@
 .actions{display:flex;gap:7px}.status-pill{min-width:112px;text-align:right;color:#6f8ba0;font-size:11px;border-left:1px solid #223343;padding-left:10px}
 html,body{display:flex;flex-direction:column}#bar{flex:0 0 54px}
 #main{display:flex;flex:1 1 auto;min-height:0;gap:0}
-#editorPane{flex:0 0 var(--split,52%);min-width:260px;max-width:78%}
+#editorColumn{flex:0 0 var(--split,52%);min-width:260px;max-width:78%;display:flex;flex-direction:column;min-height:0}
+#editorPane{flex:1 1 auto;min-height:0}
 #previewPane{flex:1 1 auto;min-width:220px}
 #splitter{flex:0 0 7px;cursor:col-resize;background:var(--bg);position:relative;z-index:2}
 #splitter::before{content:"";position:absolute;top:0;bottom:0;left:3px;width:1px;background:var(--border);transition:.15s}
 #splitter:hover::before{left:2px;width:3px;background:var(--accent);box-shadow:0 0 8px rgba(102,204,255,.4)}
 #editorPane,#previewPane{min-width:0;min-height:0;display:flex;flex-direction:column;background:#0d141c}
-#editorPane{border-right:0}
+#editorColumn{border-right:0}
 .pane-head{height:36px;flex:0 0 36px;display:flex;align-items:center;gap:8px;padding:0 12px;background:#101923;border-bottom:1px solid #1a2936;color:#9db6ca;font-size:12px}.pane-dot{width:7px;height:7px;border-radius:2px;background:#ffd479;box-shadow:0 0 8px rgba(255,212,121,.35)}.pane-dot.preview{background:#5ce1a0;box-shadow:0 0 8px rgba(92,225,160,.35)}.pane-meta{margin-left:auto;color:#5d7a90;font-size:11px}
 .editor-wrap{flex:1;min-height:0;padding:6px 0 0}.CodeMirror{height:100%;width:100%;background:#0b1219;color:#d8e4ef;font:12.5px/1.7 Consolas,"Cascadia Mono",monospace}
 .CodeMirror-scroll{padding-bottom:20px}.CodeMirror-gutters{background:#0b1219;border-right:1px solid #172331}.CodeMirror-linenumber{color:#40596d;padding:0 9px 0 7px;font-size:11px}.CodeMirror-cursor{border-left:2px solid #66ccff}.CodeMirror-selected{background:#16364a!important}.CodeMirror-focused .CodeMirror-selected{background:#1b4a64!important}.CodeMirror-activeline-background{background:#0f1b25}.CodeMirror-matchingbracket{color:#9be7a8!important;outline:1px solid #4e7a58}.CodeMirror-foldmarker{color:#66ccff;background:#16232e;border-radius:3px;padding:0 4px}
 .cm-s-lyra .cm-comment{color:#5f7185;font-style:italic}.cm-s-lyra .cm-tag{color:#7ee0ff}.cm-s-lyra .cm-attribute{color:#b7d98b}.cm-s-lyra .cm-string{color:#ffd479}.cm-s-lyra .cm-string-2{color:#ffd479}.cm-s-lyra .cm-keyword{color:#ff9aaa}.cm-s-lyra .cm-number{color:#d4a5ff}.cm-s-lyra .cm-property{color:#e5c07b}.cm-s-lyra .cm-variable{color:#eaf1f9}.cm-s-lyra .cm-variable-2{color:#9ad4ff}.cm-s-lyra .cm-atom{color:#ffb86c}.cm-s-lyra .cm-qualifier{color:#7ee0ff}.cm-s-lyra .cm-builtin{color:#ffb86c}.cm-s-lyra .cm-operator{color:#8d9db1}.cm-s-lyra .cm-meta{color:#8d9db1}.cm-s-lyra .cm-bracket{color:#c7d6e5}.cm-s-lyra .cm-error{color:#ff8fa3;background:#3a1c24}
 #previewPane{background:#0e151d}.preview-card{flex:1;min-height:0;margin:12px;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 8px 30px rgba(0,0,0,.35),0 0 0 1px rgba(120,190,255,.08)}#preview{width:100%;height:100%;border:0;background:#fff;display:block}
-@media(max-width:900px){#splitter{display:none}#editorPane{flex-basis:100%;max-width:none}#previewPane{display:none}}
+@media(max-width:900px){#splitter{display:none}#editorColumn{flex-basis:100%;max-width:none}#previewPane{display:none}}
 
 /* ---------- 主题 ---------- */
 :root{--bg:#0b1016;--panel:#0d141c;--bar1:#141d27;--bar2:#0f161e;--border:#1d2c3a;--line:#1a2936;--text:#d6e4f0;--muted:#7e98ad;--accent:#66ccff;--accent2:#2f86f6;--code-bg:#0b1219;--code-text:#d8e4ef;--sel:#16364a;--sel2:#1b4a64;--card:#fff}
@@ -85,13 +86,13 @@ html[data-theme="light"] .cm-css-error-gutter,html[data-theme="sakura"] .cm-css-
 .problems-list{overflow:auto;min-height:0}.problem-item{display:flex;gap:8px;align-items:flex-start;padding:5px 12px;font:12px/1.45 Consolas,monospace;color:var(--text);cursor:pointer;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent)}.problem-item:hover{background:var(--bar1)}.problem-icon{color:#ff5c7a;font-weight:700;flex:0 0 auto}.problem-line{color:var(--muted);flex:0 0 auto}.problem-msg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* VS Code 式底部问题面板：固定区域、横跨全宽 */
-.problems-panel{flex:0 0 var(--problems-height,210px);display:flex;flex-direction:column;min-height:0;background:var(--bar2);border-top:1px solid var(--border);box-shadow:0 -8px 24px rgba(0,0,0,.12)}
+.problems-panel{flex:0 0 var(--problems-height,210px);display:flex;flex-direction:column;min-height:0;background:var(--bar2);border-top:1px solid var(--border);box-shadow:0 -8px 24px rgba(0,0,0,.12);min-width:0}
 .problems-head{height:33px;flex:0 0 33px;display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--bar1);border-bottom:1px solid var(--line)}
 .problem-tab{border:0;border-bottom:2px solid var(--accent);border-radius:0;background:transparent;padding:7px 8px 6px;color:var(--text);font-size:12px;cursor:default}
 .problem-tab span{display:inline-block;min-width:16px;margin-left:3px;padding:0 5px;border-radius:8px;background:rgba(255,92,122,.16);color:#ff7b96;font-size:10px;text-align:center}
 .problem-summary{margin-left:auto;color:var(--muted);font-size:11px;padding-right:6px}
 .problems-list{flex:1;min-height:0;overflow:auto;background:var(--panel)}
-.problem-row{display:grid;grid-template-columns:18px minmax(0,1fr) 180px 58px;align-items:center;gap:8px;padding:4px 12px;font-size:12px;color:var(--text);cursor:pointer;border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent)}
+.problem-row{display:grid;grid-template-columns:18px minmax(0,1fr) minmax(90px,150px) 44px;align-items:center;gap:8px;padding:4px 12px;font-size:12px;color:var(--text);cursor:pointer;border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent)}
 .problem-row:hover{background:var(--bar1)}
 .problem-sev{color:#ff5c7a;font-weight:700;text-align:center}
 .problem-msg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
