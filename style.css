@@ -64,3 +64,11 @@ html[data-theme="light"] .cm-s-lyra .cm-comment,
 html[data-theme="sakura"] .cm-s-lyra .cm-comment { color:#7d8b99; }
 html[data-theme="light"] .cm-s-lyra .cm-keyword,
 html[data-theme="sakura"] .cm-s-lyra .cm-keyword { color:#b3266b; }
+
+.CodeMirror-gutter.css-errors { width:16px; }
+.cm-css-error { text-decoration:underline wavy #ff5c7a; text-underline-offset:2px; background:rgba(255,92,122,.10); border-radius:2px; }
+.cm-css-error-line { background:rgba(255,92,122,.06) !important; }
+.cm-css-error-gutter { color:#ff5c7a; font:700 11px/1.6 Consolas,monospace; text-align:center; cursor:help; }
+html[data-theme="light"] .cm-css-error,html[data-theme="sakura"] .cm-css-error { text-decoration-color:#d92e5a; background:rgba(217,46,90,.08); }
+html[data-theme="light"] .cm-css-error-line,html[data-theme="sakura"] .cm-css-error-line { background:rgba(217,46,90,.05) !important; }
+html[data-theme="light"] .cm-css-error-gutter,html[data-theme="sakura"] .cm-css-error-gutter { color:#c92a52; }

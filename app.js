@@ -7,7 +7,7 @@
   const pathParam = params.get("projectEntry") || params.get("path") || "";
   const host = window.chrome && window.chrome.webview;
   const shellPending = new Map();
-  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra" };
+  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [] };
   const THEMES = new Set(["lyra", "violet", "emerald", "sunset", "sakura", "light"]);
   let cm = null;
 
@@ -72,6 +72,7 @@
       state.dirty = false;
       setStatus("已加载");
       updatePreview();
+      setTimeout(refreshLint, 50);
     } catch (e) {
       setStatus("打开失败：" + (e && e.message ? e.message : e), true);
     }
@@ -129,20 +130,72 @@
     if (/^\s*\/\*.*\*\/\s*$/.test(body)) cm.replaceRange(body.replace(/^\s*\/\*\s?/, "").replace(/\s?\*\/\s*$/, ""), { line: cursor.line, ch: indent.length }, { line: cursor.line, ch: line.length });
     else cm.replaceRange("/* " + body + " */", { line: cursor.line, ch: indent.length }, { line: cursor.line, ch: line.length });
   }
-  function basicLint() {
+  function collectCssIssues() {
     const text = cm.getValue();
-    let depth = 0, quote = "", errors = 0;
-    for (let i = 0; i < text.length; i += 1) {
-      const ch = text[i];
-      if (quote) { if (ch === quote && text[i - 1] !== "\\") quote = ""; continue; }
-      if (ch === '"' || ch === "'") quote = ch;
-      else if (ch === "{") depth += 1;
-      else if (ch === "}") { depth -= 1; if (depth < 0) { errors += 1; depth = 0; } }
+    const lines = text.split("\n");
+    const stack = [];
+    const issues = [];
+    let quote = null;
+    for (let li = 0; li < lines.length; li += 1) {
+      const line = lines[li];
+      for (let ci = 0; ci < line.length; ci += 1) {
+        const ch = line[ci];
+        if (quote) {
+          if (ch === "\\") { ci += 1; continue; }
+          if (ch === quote.ch) quote = null;
+          continue;
+        }
+        if (ch === '"' || ch === "'") { quote = { ch: ch, line: li, chPos: ci }; continue; }
+        if (ch === "{" || ch === "(" || ch === "[") { stack.push({ ch: ch, line: li, chPos: ci }); continue; }
+        if (ch === "}" || ch === ")" || ch === "]") {
+          const open = stack.pop();
+          const want = open ? (open.ch === "{" ? "}" : open.ch === "(" ? ")" : "]") : "";
+          if (!open || ch !== want) issues.push({ line: li, chPos: ci, message: "括号不匹配：多余的 " + ch });
+        }
+      }
     }
-    if (depth !== 0) errors += 1;
-    if (quote) errors += 1;
-    return errors;
+    for (const item of stack) issues.push({ line: item.line, chPos: item.chPos, message: "括号未闭合：" + item.ch });
+    if (quote) issues.push({ line: quote.line, chPos: quote.chPos, message: "引号未闭合：" + quote.ch });
+    // 去重并限制数量
+    const seen = new Set();
+    return issues.filter((it) => {
+      const key = it.line + ":" + it.chPos + ":" + it.message;
+      if (seen.has(key)) return false;
+      seen.add(key); return true;
+    }).slice(0, 50);
   }
+  function refreshLint() {
+    if (!cm) return;
+    for (const mark of state.errorMarks) { try { mark.clear(); } catch { } }
+    state.errorMarks = [];
+    for (const line of state.errorLines) { try { cm.removeLineClass(line, "background", "cm-css-error-line"); } catch { } }
+    state.errorLines = [];
+    try { cm.clearGutter("css-errors"); } catch { }
+    const issues = collectCssIssues();
+    const markedLines = new Set();
+    for (const issue of issues) {
+      const line = Math.max(0, Math.min(issue.line, cm.lineCount() - 1));
+      const lineText = cm.getLine(line) || "";
+      const ch = Math.max(0, Math.min(issue.chPos, Math.max(0, lineText.length - 1)));
+      const mark = cm.markText({ line: line, ch: ch }, { line: line, ch: Math.min(lineText.length, ch + 1) }, {
+        className: "cm-css-error",
+        title: issue.message,
+      });
+      state.errorMarks.push(mark);
+      if (!markedLines.has(line)) {
+        markedLines.add(line);
+        cm.addLineClass(line, "background", "cm-css-error-line");
+        state.errorLines.push(line);
+        const gutter = document.createElement("div");
+        gutter.className = "cm-css-error-gutter";
+        gutter.textContent = "!";
+        gutter.title = issue.message;
+        cm.setGutterMarker(line, "css-errors", gutter);
+      }
+    }
+    setStatus(issues.length ? issues.length + " 个问题" : "就绪", false);
+  }
+
   function bind() {
     $("save").addEventListener("click", saveFile);
     $("format").addEventListener("click", () => { cm.setValue(formatCss(cm.getValue())); markDirty(); updatePreview(); setStatus("已格式化"); });
@@ -161,7 +214,7 @@
   function initEditor() {
     cm = CodeMirror.fromTextArea($("code"), {
       mode: "css", theme: "lyra", lineNumbers: true, matchBrackets: true, autoCloseBrackets: true,
-      foldGutter: true, gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+      foldGutter: true, gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter", "css-errors"],
       styleActiveLine: true, indentUnit: 2, tabSize: 2, lineWrapping: false,
       extraKeys: {
         "Ctrl-S": () => saveFile(), "Cmd-S": () => saveFile(),
@@ -171,7 +224,7 @@
         "Ctrl-G": () => { const n = prompt("跳转到行"); if (n) cm.setCursor({ line: Math.max(0, parseInt(n, 10) - 1), ch: 0 }); },
       },
     });
-    cm.on("change", () => { markDirty(); clearTimeout(state.statusTimer); state.statusTimer = setTimeout(() => { const errs = basicLint(); if (errs) setStatus("括号/引号可能不匹配", true); else setStatus("就绪"); }, 400); updatePreview(); });
+    cm.on("change", () => { markDirty(); clearTimeout(state.statusTimer); state.statusTimer = setTimeout(refreshLint, 350); updatePreview(); });
     cm.setSize("100%", "100%");
   }
   bind();
