@@ -149,7 +149,7 @@
   }
   function initEditor() {
     cm = CodeMirror.fromTextArea($("code"), {
-      mode: "css", lineNumbers: true, matchBrackets: true, autoCloseBrackets: true,
+      mode: "css", theme: "lyra", lineNumbers: true, matchBrackets: true, autoCloseBrackets: true,
       foldGutter: true, gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
       styleActiveLine: true, indentUnit: 2, tabSize: 2, lineWrapping: false,
       extraKeys: {
