@@ -198,22 +198,32 @@
   function renderProblems(issues) {
     const panel = $("problemsPanel");
     if (!panel) return;
-    panel.hidden = !issues.length;
+    panel.hidden = false;
     $("problemCount").textContent = String(issues.length);
+    $("problemSummary").textContent = issues.length ? ("在 1 个文件中发现 " + issues.length + " 个问题") : "未检测到问题";
     const list = $("problemsList");
     list.innerHTML = "";
+    if (!issues.length) {
+      const empty = document.createElement("div");
+      empty.className = "problem-empty";
+      empty.textContent = "没有检测到 CSS 问题。";
+      list.appendChild(empty);
+      return;
+    }
     for (const issue of issues) {
-      const item = document.createElement("div");
-      item.className = "problem-item";
-      item.innerHTML = '<span class="problem-icon">●</span><span class="problem-line">' + (issue.line + 1) + ":" + (issue.chPos + 1) + '</span><span class="problem-msg"></span>';
-      item.querySelector(".problem-msg").textContent = issue.message;
-      item.title = issue.message;
-      item.addEventListener("click", () => {
+      const row = document.createElement("div");
+      row.className = "problem-row";
+      row.title = issue.message;
+      row.innerHTML = '<span class="problem-sev">●</span><span class="problem-msg"></span><span class="problem-pos"></span><span class="problem-source"></span>';
+      row.querySelector(".problem-msg").textContent = issue.message;
+      row.querySelector(".problem-pos").textContent = (state.path || "CSS") + ":" + (issue.line + 1) + ":" + (issue.chPos + 1);
+      row.querySelector(".problem-source").textContent = issue.source || "CSS";
+      row.addEventListener("click", () => {
         cm.setCursor({ line: issue.line, ch: issue.chPos });
         cm.focus();
         cm.scrollIntoView({ line: issue.line, ch: issue.chPos }, 120);
       });
-      list.appendChild(item);
+      list.appendChild(row);
     }
   }
 

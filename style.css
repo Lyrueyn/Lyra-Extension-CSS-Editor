@@ -3,7 +3,8 @@
 .brand{display:flex;align-items:center;gap:9px;min-width:170px}.logo{display:inline-flex;align-items:center;justify-content:center;width:34px;height:28px;border-radius:7px;background:linear-gradient(135deg,#1d6fe0,#66ccff);color:#04121f;font:700 11px/1 Consolas,monospace;letter-spacing:.04em;box-shadow:0 0 18px rgba(102,204,255,.28)}.brand-name{font-size:13px;color:#cfe4f5;letter-spacing:.04em}
 .file-wrap{display:flex;align-items:center;gap:7px;min-width:0;flex:1;color:#8da6ba;font-size:12px}.file-wrap #file{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-dot{width:6px;height:6px;border-radius:50%;background:#66ccff;box-shadow:0 0 8px #66ccff;flex:0 0 auto}
 .actions{display:flex;gap:7px}.status-pill{min-width:112px;text-align:right;color:#6f8ba0;font-size:11px;border-left:1px solid #223343;padding-left:10px}
-#main{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);height:calc(100% - 54px);min-height:0;gap:0}
+html,body{display:flex;flex-direction:column}#bar{flex:0 0 54px}
+#main{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);flex:1 1 auto;min-height:0;gap:0}
 #editorPane,#previewPane{min-width:0;min-height:0;display:flex;flex-direction:column;background:#0d141c}
 #editorPane{border-right:1px solid #1b2a38}
 .pane-head{height:36px;flex:0 0 36px;display:flex;align-items:center;gap:8px;padding:0 12px;background:#101923;border-bottom:1px solid #1a2936;color:#9db6ca;font-size:12px}.pane-dot{width:7px;height:7px;border-radius:2px;background:#ffd479;box-shadow:0 0 8px rgba(255,212,121,.35)}.pane-dot.preview{background:#5ce1a0;box-shadow:0 0 8px rgba(92,225,160,.35)}.pane-meta{margin-left:auto;color:#5d7a90;font-size:11px}
@@ -77,3 +78,18 @@ html[data-theme="light"] .cm-css-error-gutter,html[data-theme="sakura"] .cm-css-
 .problems-head{height:30px;flex:0 0 30px;display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--muted);font-size:11px;letter-spacing:.06em;border-bottom:1px solid var(--line)}
 .problems-head span:last-child{min-width:20px;text-align:center;border-radius:9px;background:rgba(255,92,122,.15);color:#ff7b96;font-size:10px;padding:1px 7px}
 .problems-list{overflow:auto;min-height:0}.problem-item{display:flex;gap:8px;align-items:flex-start;padding:5px 12px;font:12px/1.45 Consolas,monospace;color:var(--text);cursor:pointer;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent)}.problem-item:hover{background:var(--bar1)}.problem-icon{color:#ff5c7a;font-weight:700;flex:0 0 auto}.problem-line{color:var(--muted);flex:0 0 auto}.problem-msg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* VS Code 式底部问题面板：固定区域、横跨全宽 */
+.problems-panel{flex:0 0 164px;display:flex;flex-direction:column;min-height:0;background:var(--bar2);border-top:1px solid var(--border);box-shadow:0 -8px 24px rgba(0,0,0,.12)}
+.problems-head{height:33px;flex:0 0 33px;display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--bar1);border-bottom:1px solid var(--line)}
+.problem-tab{border:0;border-bottom:2px solid var(--accent);border-radius:0;background:transparent;padding:7px 8px 6px;color:var(--text);font-size:12px;cursor:default}
+.problem-tab span{display:inline-block;min-width:16px;margin-left:3px;padding:0 5px;border-radius:8px;background:rgba(255,92,122,.16);color:#ff7b96;font-size:10px;text-align:center}
+.problem-summary{margin-left:auto;color:var(--muted);font-size:11px;padding-right:6px}
+.problems-list{flex:1;min-height:0;overflow:auto;background:var(--panel)}
+.problem-row{display:grid;grid-template-columns:18px minmax(0,1fr) 180px 58px;align-items:center;gap:8px;padding:4px 12px;font-size:12px;color:var(--text);cursor:pointer;border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent)}
+.problem-row:hover{background:var(--bar1)}
+.problem-sev{color:#ff5c7a;font-weight:700;text-align:center}
+.problem-msg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.problem-pos{color:var(--muted);font:11px/1 Consolas,monospace;text-align:right;white-space:nowrap}
+.problem-source{color:var(--muted);font-size:10px;text-align:right;text-transform:uppercase;letter-spacing:.05em}
+.problem-empty{padding:12px 14px;color:var(--muted);font-size:12px}
