@@ -7,7 +7,7 @@
   const pathParam = params.get("projectEntry") || params.get("path") || "";
   const host = window.chrome && window.chrome.webview;
   const shellPending = new Map();
-  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 52, lintSeq: 0 };
+  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 52, lintSeq: 0, inspect: false, selected: null, selectedSelector: "", inspectBound: false };
   const THEMES = new Set(["lyra", "violet", "emerald", "sunset", "sakura", "light"]);
   let cm = null;
 
@@ -117,10 +117,7 @@
   function previewDocument(cssText) {
     const base = "html,body{margin:0}body{padding:34px 38px;font:15px/1.75 system-ui,'Segoe UI','Microsoft YaHei',sans-serif;color:#243447;background:linear-gradient(180deg,#ffffff,#f4f8fd);min-height:100vh}.container{max-width:760px;margin:0 auto}h1{font-size:30px;line-height:1.25;margin:0 0 10px;letter-spacing:-.02em;color:#12263a}h2{font-size:18px;margin:0 0 6px;color:#173a57}p{margin:10px 0;color:#465b70}a{color:#1976d2}code{background:#eef4fb;padding:1px 6px;border-radius:5px;font:12px Consolas,monospace;color:#205a86}.box.card{border:1px solid #dbe7f3;background:#fff;border-radius:12px;padding:18px 20px;margin-top:18px;box-shadow:0 6px 20px rgba(30,80,140,.08)}ul{margin:14px 0;padding-left:22px}li{margin:4px 0}table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}th,td{text-align:left;padding:9px 10px;border-bottom:1px solid #e3edf6}th{background:#f2f7fd;color:#35526a;font-weight:600}button{font:inherit;padding:5px 12px;border:1px solid #c9dced;border-radius:7px;background:#fff;color:#1b5e8c}.row{display:flex;gap:12px;margin-top:16px}.col{flex:1;padding:14px;border:1px dashed #c7d9e9;border-radius:10px;background:#f9fcff;color:#5b7388}";
     const user = String(cssText || "").replace(/<\/style/gi, "<\\/style");
-    return '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>' + base + '</style><style>' + user + '</style></head><body><div class="container"><h1>CSS 预览</h1><p>这是示例段落，用来观察颜色、字号、间距和布局。</p><p><a href="#">链接</a> · <button>按钮</button> · <code>code</code></p><div class="box card"><h2>卡片标题</h2><p>Common classes: container, box, card, row, col</p></div><div class="row"><div class="col">col 1</div><div class="col">col 2</div></div><ul><li>列表项 1</li><li>列表项 2</li></ul><table><tr><th>表头</th><th>表头</th></tr><tr><td>内容</td><td>内容</td></tr></table></div></body></html>';
-  }
-  function updatePreview() {
-    try { $("preview").srcdoc = previewDocument(cm.getValue()); } catch { }
+    return '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style id="lyra-base-style">' + base + '</style><style id="lyra-user-style">' + user + '</style></head><body><div class="container"><h1>CSS 预览</h1><p>这是示例段落，用来观察颜色、字号、间距和布局。</p><p><a href="#">链接</a> · <button>按钮</button> · <code>code</code></p><div class="box card"><h2>卡片标题</h2><p>Common classes: container, box, card, row, col</p></div><div class="row"><div class="col">col 1</div><div class="col">col 2</div></div><ul><li>列表项 1</li><li>列表项 2</li></ul><table><tr><th>表头</th><th>表头</th></tr><tr><td>内容</td><td>内容</td></tr></table></div></body></html>';
   }
   function formatCss(text) {
     const src = String(text || "").replace(/\r\n?/g, "\n");
@@ -324,12 +321,244 @@
     setStatus(issues.length ? issues.length + " 个问题" : "就绪", false);
   }
 
+  function injectInspectorStyle(doc) {
+    if (!doc || doc.getElementById("lyra-inspect-style")) return;
+    const st = doc.createElement("style");
+    st.id = "lyra-inspect-style";
+    st.textContent = ".__lyra-hover{outline:1px solid #66ccff !important;outline-offset:-1px;cursor:crosshair}.__lyra-selected{outline:2px solid #2f86f6 !important;outline-offset:-1px}";
+    (doc.head || doc.documentElement).appendChild(st);
+  }
+  function selectorFor(el) {
+    if (!el) return "";
+    let out = el.localName || "*";
+    if (el.id) out += "#" + CSS.escape(el.id);
+    for (const c of Array.from(el.classList || [])) if (!c.startsWith("__lyra")) out += "." + CSS.escape(c);
+    return out;
+  }
+  function setupPreviewDoc(doc) {
+    if (!doc || doc.__lyraInspectorBound) return;
+    doc.__lyraInspectorBound = true;
+      injectInspectorStyle(doc);
+      let hovered = null;
+      doc.addEventListener("mouseover", (event) => {
+        if (!state.inspect || !event.target || event.target.nodeType !== 1) return;
+        if (hovered) hovered.classList.remove("__lyra-hover");
+        hovered = event.target;
+        hovered.classList.add("__lyra-hover");
+      }, true);
+      doc.addEventListener("mouseleave", () => {
+        if (hovered) hovered.classList.remove("__lyra-hover");
+        hovered = null;
+      }, true);
+    doc.addEventListener("click", (event) => {
+      if (!state.inspect || !event.target || event.target.nodeType !== 1) return;
+      event.preventDefault();
+      event.stopPropagation();
+      selectInspectElement(event.target);
+    }, true);
+  }
+  function bindPreviewInspector() {
+    const frame = $("preview");
+    if (!frame) return;
+    frame.addEventListener("load", () => {
+      if (!state.inspect) return;
+      setupPreviewDoc(frame.contentDocument);
+    });
+  }
+  function selectInspectElement(el) {
+    if (!el || el.nodeType !== 1) return;
+    if (state.selected && state.selected.classList) state.selected.classList.remove("__lyra-selected");
+    state.selected = el;
+    state.selectedSelector = selectorFor(el);
+    el.classList.add("__lyra-selected");
+    $("devInspector").hidden = false;
+    $("devSelector").textContent = state.selectedSelector;
+    renderInspector();
+  }
+  function collectMatchedRules(el) {
+    const out = [];
+    const doc = $("preview").contentDocument;
+    if (!doc || !el) return out;
+    const visit = (rules) => {
+      for (const rule of Array.from(rules || [])) {
+        try {
+          if (rule.type === CSSRule.STYLE_RULE) {
+            let matched = false;
+            try { matched = el.matches(rule.selectorText); } catch { }
+            if (matched) out.push(rule);
+          } else if (rule.cssRules) visit(rule.cssRules);
+        } catch { }
+      }
+    };
+    for (const sheet of Array.from(doc.styleSheets)) {
+      if (sheet.ownerNode && (sheet.ownerNode.id === "lyra-base-style" || sheet.ownerNode.id === "lyra-inspect-style")) continue;
+      try { visit(sheet.cssRules); } catch { }
+    }
+    return out;
+  }
+  function computedRows(el) {
+    if (!el) return [];
+    const cs = $("preview").contentWindow.getComputedStyle(el);
+    const props = ["display", "position", "width", "height", "margin", "padding", "border", "border-radius", "color", "background-color", "font-family", "font-size", "font-weight", "line-height", "text-align", "flex", "gap", "grid-template-columns", "opacity", "transform", "box-shadow", "transition", "z-index"];
+    return props.map((p) => [p, cs.getPropertyValue(p)]);
+  }
+  function cssRuleSpan(selector) {
+    const text = cm.getValue();
+    const re = new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{", "g");
+    let m;
+    while ((m = re.exec(text))) {
+      const start = m.index;
+      let i = text.indexOf("{", start);
+      let depth = 0;
+      for (; i < text.length; i += 1) {
+        if (text[i] === "{") depth += 1;
+        else if (text[i] === "}") { depth -= 1; if (depth === 0) return { start: start, open: m.index + m[0].length, end: i, close: i }; }
+      }
+    }
+    return null;
+  }
+  function updateCssDeclaration(selector, prop, value) {
+    const span = cssRuleSpan(selector);
+    if (!span) return false;
+    let block = cm.getRange(cm.posFromIndex(span.open), cm.posFromIndex(span.close));
+    const propRe = new RegExp("(^|[;{]\\s*)" + prop.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*:[^;}]*", "m");
+    if (propRe.test(block)) block = block.replace(propRe, (all, lead) => lead + prop + ": " + value);
+    else block = block.replace(/\s*$/, "") + "\n  " + prop + ": " + value + ";\n";
+    cm.replaceRange(block, cm.posFromIndex(span.open), cm.posFromIndex(span.close));
+    return true;
+  }
+  function escapeHtml(text) {
+    return String(text == null ? "" : text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function renderInspector() {
+    const el = state.selected;
+    if (!el) return;
+    $("devSelector").textContent = state.selectedSelector;
+    const styleBox = $("devStyle");
+    styleBox.innerHTML = "";
+    const inline = el.getAttribute("style") || "";
+    const inlineWrap = document.createElement("div");
+    inlineWrap.className = "dev-inline";
+    inlineWrap.innerHTML = '<div class="dev-section-title">element.style</div>';
+    for (const decl of Array.from(el.style)) {
+      const row = document.createElement("div"); row.className = "dev-decl";
+      row.innerHTML = '<span class="prop"></span><input type="text"><span class="del">×</span>';
+      row.querySelector(".prop").textContent = decl;
+      const inp = row.querySelector("input"); inp.value = el.style.getPropertyValue(decl);
+      inp.addEventListener("change", () => { el.style.setProperty(decl, inp.value); });
+      row.querySelector(".del").addEventListener("click", () => { el.style.removeProperty(decl); renderInspector(); });
+      inlineWrap.appendChild(row);
+    }
+    const add = document.createElement("div"); add.className = "dev-add";
+    add.innerHTML = '<input placeholder="property"><input placeholder="value"><button type="button">+</button>';
+    const [pi, vi] = add.querySelectorAll("input");
+    add.querySelector("button").addEventListener("click", () => {
+      const p = pi.value.trim(), v = vi.value.trim();
+      if (!p) return;
+      el.style.setProperty(p, v);
+      renderInspector();
+    });
+    inlineWrap.appendChild(add);
+    styleBox.appendChild(inlineWrap);
+    const rules = collectMatchedRules(el);
+    const rulesWrap = document.createElement("div");
+    rulesWrap.className = "dev-section";
+    rulesWrap.innerHTML = '<div class="dev-section-title">匹配的 CSS 规则</div>';
+    if (!rules.length) rulesWrap.innerHTML += '<div class="dev-empty">没有匹配规则</div>';
+    for (const rule of rules) {
+      const box = document.createElement("div"); box.className = "dev-rule";
+      const head = document.createElement("div"); head.className = "dev-rule-head";
+      head.innerHTML = '<span class="sel"></span><span class="jump">跳转</span>';
+      head.querySelector(".sel").textContent = rule.selectorText;
+      head.addEventListener("click", () => {
+        const span = cssRuleSpan(rule.selectorText);
+        if (span) { const pos = cm.posFromIndex(span.start); cm.setCursor(pos); cm.scrollIntoView(pos, 100); cm.focus(); }
+      });
+      box.appendChild(head);
+      for (let i = 0; i < rule.style.length; i += 1) {
+        const prop = rule.style[i];
+        const val = rule.style.getPropertyValue(prop);
+        const row = document.createElement("div"); row.className = "dev-decl";
+        row.innerHTML = '<span class="prop"></span><input type="text"><span class="del">×</span>';
+        row.querySelector(".prop").textContent = prop;
+        const inp = row.querySelector("input"); inp.value = val;
+        inp.addEventListener("change", () => {
+          if (updateCssDeclaration(rule.selectorText, prop, inp.value)) {
+            state.dirty = true; scheduleAutoSave(); updatePreview();
+          }
+        });
+        row.querySelector(".del").addEventListener("click", () => {
+          if (updateCssDeclaration(rule.selectorText, prop, "")) { state.dirty = true; scheduleAutoSave(); updatePreview(); }
+        });
+        box.appendChild(row);
+      }
+      rulesWrap.appendChild(box);
+    }
+    styleBox.appendChild(rulesWrap);
+    const computed = $("devComputed");
+    computed.innerHTML = computedRows(el).map(([k, v]) => '<div class="dev-computed-row"><span class="k">' + escapeHtml(k) + '</span><span class="v">' + escapeHtml(v) + '</span></div>').join("");
+  }
+  function updatePreview() {
+    try {
+      const frame = $("preview");
+      const wasInspecting = state.inspect;
+      frame.srcdoc = previewDocument(cm.getValue());
+      if (wasInspecting) setTimeout(() => {
+        const doc = frame.contentDocument;
+        if (!doc) return;
+        setupPreviewDoc(doc);
+        if (state.selectedSelector) {
+          try {
+            const el = doc.querySelector(state.selectedSelector);
+            if (el) { state.selected = el; el.classList.add("__lyra-selected"); renderInspector(); }
+          } catch { }
+        }
+      }, 60);
+    } catch { }
+  }
+
+  function toggleInspect(force) {
+    state.inspect = typeof force === "boolean" ? force : !state.inspect;
+    $("inspectBtn").classList.toggle("active", state.inspect);
+    $("devInspector").hidden = !state.inspect;
+    if (!state.inspect) {
+      if (state.selected) state.selected.classList.remove("__lyra-selected");
+      state.selected = null; state.selectedSelector = "";
+      setStatus("就绪");
+    } else {
+      bindPreviewInspector();
+      setupPreviewDoc($("preview").contentDocument);
+      setStatus("检查模式：点击预览中的元素");
+    }
+  }
   function bind() {
     $("save").addEventListener("click", () => saveFile(false));
     $("format").addEventListener("click", () => { cm.setValue(formatCss(cm.getValue())); markDirty(); updatePreview(); setStatus("已格式化"); });
     $("theme").addEventListener("change", () => applyTheme($("theme").value));
     $("previewRefresh").addEventListener("click", () => updatePreview());
-    document.addEventListener("keydown", (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") { event.preventDefault(); clearTimeout(state.autoTimer); state.dirty = cm.getValue() !== state.lastSaved; saveFile(false); } });
+    $("inspectBtn").addEventListener("click", () => toggleInspect());
+    $("devClose").addEventListener("click", () => {
+      state.inspect = false; state.selected = null; state.selectedSelector = "";
+      $("inspectBtn").classList.remove("active"); $("devInspector").hidden = true;
+    });
+    document.querySelectorAll(".dev-tab").forEach((tab) => tab.addEventListener("click", () => {
+      document.querySelectorAll(".dev-tab").forEach((t) => t.classList.toggle("active", t === tab));
+      $("devStyle").hidden = tab.dataset.dev !== "style";
+      $("devComputed").hidden = tab.dataset.dev !== "computed";
+    }));
+    document.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        clearTimeout(state.autoTimer);
+        state.dirty = cm.getValue() !== state.lastSaved;
+        saveFile(false);
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "c") {
+        event.preventDefault();
+        toggleInspect();
+      }
+    });
     window.addEventListener("message", (event) => {
       const d = event.data || {};
       if (d.type === "theme" && typeof d.theme === "string") applyTheme(d.theme);
