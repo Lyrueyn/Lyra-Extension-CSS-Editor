@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CSS 编辑器</title>
+<link rel="stylesheet" href="vendor/codemirror/codemirror.min.css"><link rel="stylesheet" href="vendor/codemirror/addon/hint/show-hint.min.css"><link rel="stylesheet" href="vendor/codemirror/addon/fold/foldgutter.min.css"><link rel="stylesheet" href="style.css"></head>
+<body>
+<header id="bar"><strong>CSS</strong><button id="save" class="primary">保存</button><button id="format">格式化</button><button id="comment">注释 Ctrl+/</button><span id="file">未打开文件</span><span id="status"></span></header>
+<main><section id="editorPane"><textarea id="code"></textarea></section><section id="previewPane"><div id="previewHead">预览 <span id="previewInfo"></span></div><iframe id="preview"></iframe></section></main>
+<script src="vendor/codemirror/codemirror.min.js"></script>
+<script src="vendor/codemirror/addon/hint/show-hint.min.js"></script>
+<script src="vendor/codemirror/addon/hint/css-hint.min.js"></script>
+<script src="vendor/codemirror/addon/fold/foldcode.min.js"></script>
+<script src="vendor/codemirror/addon/fold/brace-fold.min.js"></script>
+<script src="vendor/codemirror/addon/fold/foldgutter.min.js"></script>
+<script src="vendor/codemirror/addon/edit/matchbrackets.min.js"></script>
+<script src="vendor/codemirror/addon/edit/closebrackets.min.js"></script>
+<script src="vendor/codemirror/mode/css/css.min.js"></script>
+<script src="app.js"></script>
+</body></html>

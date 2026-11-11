@@ -1,0 +1,37 @@
+{
+  "id": "css-editor",
+  "name": "CSS 编辑器",
+  "version": "1.0.0",
+  "entry": "index.html",
+  "description": "CSS 源码编辑器：高亮、补全、括号匹配、折叠、注释、格式化、实时预览；可由编辑器外壳加载。",
+  "kind": "editor-plugin",
+  "editor": {
+    "id": "css",
+    "name": "CSS",
+    "description": "CSS 源码与实时预览",
+    "glyph": "E749",
+    "order": 20
+  },
+  "fileTypes": [
+    ".css"
+  ],
+  "host": {
+    "innerName": "editor.html",
+    "fileParam": "file",
+    "keepMtime": true
+  },
+  "library": {
+    "sidebar": false,
+    "navLabel": "CSS-Editor",
+    "glyph": "E749",
+    "title": "CSS 编辑器层",
+    "description": "CSS 源码编辑器。",
+    "openLabel": "打开",
+    "addLabel": "",
+    "authorFallback": "CSS",
+    "cover": "none",
+    "order": 37,
+    "metadata": ""
+  },
+  "license": "GPL-3.0-only"
+}
