@@ -150,20 +150,73 @@
         if (ch === "}" || ch === ")" || ch === "]") {
           const open = stack.pop();
           const want = open ? (open.ch === "{" ? "}" : open.ch === "(" ? ")" : "]") : "";
-          if (!open || ch !== want) issues.push({ line: li, chPos: ci, message: "括号不匹配：多余的 " + ch });
+          if (!open || ch !== want) issues.push({ line: li, chPos: ci, message: "括号不匹配：多余的 " + ch, source: "结构" });
         }
       }
     }
-    for (const item of stack) issues.push({ line: item.line, chPos: item.chPos, message: "括号未闭合：" + item.ch });
-    if (quote) issues.push({ line: quote.line, chPos: quote.chPos, message: "引号未闭合：" + quote.ch });
-    // 去重并限制数量
+    for (const item of stack) issues.push({ line: item.line, chPos: item.chPos, message: "括号未闭合：" + item.ch, source: "结构" });
+    if (quote) issues.push({ line: quote.line, chPos: quote.chPos, message: "引号未闭合：" + quote.ch, source: "结构" });
+
+    // 逐行做轻量语义检查：选择器、属性名、属性值。
+    let depth = 0;
+    for (let li = 0; li < lines.length; li += 1) {
+      const raw = lines[li];
+      const code = raw.replace(/\/\*.*?\*\//g, " ").trim();
+      if (!code) continue;
+      if (depth === 0 && code.includes("{")) {
+        const selector = code.split("{")[0].trim();
+        if (selector && !selector.startsWith("@") && !/^(?:from|to|\d+(?:\.\d+)?%)$/.test(selector)) {
+          try { document.querySelector(selector); }
+          catch { issues.push({ line: li, chPos: 0, message: "选择器无效：" + selector, source: "选择器" }); }
+        }
+      }
+      if (depth > 0 && !code.startsWith("@")) {
+        const m = code.match(/^([-\w]+)\s*:\s*(.+?)\s*(;|$)/);
+        if (m) {
+          const prop = m[1], value = m[2].replace(/!important\s*$/i, "").trim();
+          if (!prop.startsWith("--") && value && !value.startsWith("{") && !/^[;}]/.test(value)) {
+            try {
+              if (!CSS.supports(prop, value)) issues.push({ line: li, chPos: Math.max(0, raw.indexOf(prop)), message: "属性值无效：" + prop + ": " + value, source: "属性" });
+            } catch { }
+          }
+        }
+      }
+      let clean = raw.replace(/\/\*.*?\*\//g, " ").replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, "");
+      const opens = (clean.match(/\{/g) || []).length;
+      const closes = (clean.match(/\}/g) || []).length;
+      depth = Math.max(0, depth + opens - closes);
+    }
     const seen = new Set();
-    return issues.filter((it) => {
+    const out = [];
+    for (const it of issues) {
       const key = it.line + ":" + it.chPos + ":" + it.message;
-      if (seen.has(key)) return false;
-      seen.add(key); return true;
-    }).slice(0, 50);
+      if (seen.has(key)) continue;
+      seen.add(key); out.push(it);
+    }
+    return out.sort((a, b) => a.line - b.line || a.chPos - b.chPos).slice(0, 100);
   }
+  function renderProblems(issues) {
+    const panel = $("problemsPanel");
+    if (!panel) return;
+    panel.hidden = !issues.length;
+    $("problemCount").textContent = String(issues.length);
+    const list = $("problemsList");
+    list.innerHTML = "";
+    for (const issue of issues) {
+      const item = document.createElement("div");
+      item.className = "problem-item";
+      item.innerHTML = '<span class="problem-icon">●</span><span class="problem-line">' + (issue.line + 1) + ":" + (issue.chPos + 1) + '</span><span class="problem-msg"></span>';
+      item.querySelector(".problem-msg").textContent = issue.message;
+      item.title = issue.message;
+      item.addEventListener("click", () => {
+        cm.setCursor({ line: issue.line, ch: issue.chPos });
+        cm.focus();
+        cm.scrollIntoView({ line: issue.line, ch: issue.chPos }, 120);
+      });
+      list.appendChild(item);
+    }
+  }
+
   function refreshLint() {
     if (!cm) return;
     for (const mark of state.errorMarks) { try { mark.clear(); } catch { } }
@@ -193,6 +246,7 @@
         cm.setGutterMarker(line, "css-errors", gutter);
       }
     }
+    renderProblems(issues);
     setStatus(issues.length ? issues.length + " 个问题" : "就绪", false);
   }
 

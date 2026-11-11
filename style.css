@@ -72,3 +72,8 @@ html[data-theme="sakura"] .cm-s-lyra .cm-keyword { color:#b3266b; }
 html[data-theme="light"] .cm-css-error,html[data-theme="sakura"] .cm-css-error { text-decoration-color:#d92e5a; background:rgba(217,46,90,.08); }
 html[data-theme="light"] .cm-css-error-line,html[data-theme="sakura"] .cm-css-error-line { background:rgba(217,46,90,.05) !important; }
 html[data-theme="light"] .cm-css-error-gutter,html[data-theme="sakura"] .cm-css-error-gutter { color:#c92a52; }
+
+.problems-panel{flex:0 0 auto;max-height:150px;border-top:1px solid var(--line);background:var(--bar2);display:flex;flex-direction:column;min-height:0}
+.problems-head{height:30px;flex:0 0 30px;display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--muted);font-size:11px;letter-spacing:.06em;border-bottom:1px solid var(--line)}
+.problems-head span:last-child{min-width:20px;text-align:center;border-radius:9px;background:rgba(255,92,122,.15);color:#ff7b96;font-size:10px;padding:1px 7px}
+.problems-list{overflow:auto;min-height:0}.problem-item{display:flex;gap:8px;align-items:flex-start;padding:5px 12px;font:12px/1.45 Consolas,monospace;color:var(--text);cursor:pointer;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent)}.problem-item:hover{background:var(--bar1)}.problem-icon{color:#ff5c7a;font-weight:700;flex:0 0 auto}.problem-line{color:var(--muted);flex:0 0 auto}.problem-msg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
