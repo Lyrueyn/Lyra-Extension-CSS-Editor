@@ -7,9 +7,17 @@
   const pathParam = params.get("projectEntry") || params.get("path") || "";
   const host = window.chrome && window.chrome.webview;
   const shellPending = new Map();
-  const state = { path: pathParam, dirty: false, statusTimer: 0 };
+  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra" };
+  const THEMES = new Set(["lyra", "violet", "emerald", "sunset", "sakura", "light"]);
   let cm = null;
 
+  function applyTheme(name) {
+    const theme = THEMES.has(name) ? name : "lyra";
+    state.theme = theme;
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem("lyra.css.theme", theme); } catch { }
+    if ($("theme")) $("theme").value = theme;
+  }
   function setStatus(text, error) {
     const el = $("status");
     if (el) { el.textContent = text || ""; el.style.color = error ? "#ff8a8a" : "#8b94a6"; }
@@ -139,6 +147,7 @@
     $("save").addEventListener("click", saveFile);
     $("format").addEventListener("click", () => { cm.setValue(formatCss(cm.getValue())); markDirty(); updatePreview(); setStatus("已格式化"); });
     $("comment").addEventListener("click", toggleCssComment);
+    $("theme").addEventListener("change", () => applyTheme($("theme").value));
     document.addEventListener("keydown", (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") { event.preventDefault(); saveFile(); } });
     window.addEventListener("message", (event) => {
       const d = event.data || {};
@@ -166,5 +175,7 @@
     cm.on("change", () => { markDirty(); clearTimeout(state.statusTimer); state.statusTimer = setTimeout(() => { const errs = basicLint(); if (errs) setStatus("括号/引号可能不匹配", true); else setStatus("就绪"); }, 400); updatePreview(); });
     cm.setSize("100%", "100%");
   }
-  bind(); initEditor(); loadFile();
+  bind();
+  try { applyTheme(localStorage.getItem("lyra.css.theme") || "lyra"); } catch { applyTheme("lyra"); }
+  initEditor(); loadFile();
 })();
