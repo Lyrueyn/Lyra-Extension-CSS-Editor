@@ -32,13 +32,15 @@
   <section id="previewPane">
     <div class="pane-head"><span class="pane-dot preview"></span><span>实时预览</span><button id="inspectBtn" class="pane-btn inspect" title="检查预览元素样式 (Ctrl+Shift+C)">检查样式</button><button id="previewRefresh" class="pane-btn" title="刷新预览">↻</button><span class="pane-meta" id="previewInfo">自动刷新</span></div>
     <div class="preview-card"><iframe id="preview"></iframe></div>
-    <div id="devInspector" class="dev-inspector" hidden>
-      <div class="dev-head"><span id="devSelector" class="dev-selector">未选择元素</span><button id="devClose" class="pane-btn" title="关闭检查">×</button></div>
-      <div class="dev-tabs"><button class="dev-tab active" data-dev="style" type="button">样式</button><button class="dev-tab" data-dev="computed" type="button">计算样式</button></div>
-      <div id="devStyle" class="dev-body"></div>
-      <div id="devComputed" class="dev-body" hidden></div>
-    </div>
   </section>
+  <aside id="inspectorPane">
+    <div class="pane-head"><span class="pane-dot preview"></span><span>CSS</span><span class="pane-meta">当前规则 / 计算</span></div>
+<div id="devInspector" class="dev-inspector">
+  <div class="dev-head"><span id="devSelector" class="dev-selector">未选择元素</span><button id="devClose" class="pane-btn" title="关闭检查">×</button></div>
+  <div class="dev-tabs"><button class="dev-tab active" data-dev="style" type="button">样式</button><button class="dev-tab" data-dev="computed" type="button">计算样式</button></div>
+  <div id="devStyle" class="dev-body"></div>
+  <div id="devComputed" class="dev-body" hidden></div>
+</div>  </aside>
 </main>
 <script src="vendor/codemirror/codemirror.min.js"></script>
 <script src="vendor/codemirror/addon/hint/show-hint.min.js"></script>
@@ -49,5 +51,5 @@
 <script src="vendor/codemirror/addon/edit/matchbrackets.min.js"></script>
 <script src="vendor/codemirror/addon/edit/closebrackets.min.js"></script>
 <script src="vendor/codemirror/mode/css/css.min.js"></script>
-<script src="app.js?v=1.0.19"></script>
+<script src="app.js?v=1.0.20"></script>
 </body></html>

@@ -7,7 +7,7 @@
   const pathParam = params.get("projectEntry") || params.get("path") || "";
   const host = window.chrome && window.chrome.webview;
   const shellPending = new Map();
-  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 52, lintSeq: 0, inspect: false, selected: null, selectedSelector: "", inspectBound: false };
+  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 38, lintSeq: 0, inspect: false, selected: null, selectedSelector: "", inspectBound: false, rule: null };
   const THEMES = new Set(["lyra", "violet", "emerald", "sunset", "sakura", "light"]);
   let cm = null;
 
@@ -370,8 +370,8 @@
     if (state.selected && state.selected.classList) state.selected.classList.remove("__lyra-selected");
     state.selected = el;
     state.selectedSelector = selectorFor(el);
+    state.rule = null;
     el.classList.add("__lyra-selected");
-    $("devInspector").hidden = false;
     $("devSelector").textContent = state.selectedSelector;
     renderInspector();
   }
@@ -430,9 +430,117 @@
   function escapeHtml(text) {
     return String(text == null ? "" : text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
-  function renderInspector() {
-    const el = state.selected;
-    if (!el) return;
+  function parseRuleAtCursor() {
+    if (!cm) return null;
+    const text = cm.getValue();
+    const pos = cm.indexFromPos(cm.getCursor());
+    if (pos == null) return null;
+    const open = text.lastIndexOf("{", pos);
+    if (open < 0) return null;
+    if (text.lastIndexOf("}", pos) > open) return null;
+    const close = text.indexOf("}", open);
+    if (close < 0) return null;
+    let start = Math.max(text.lastIndexOf("}", open - 1), text.lastIndexOf(";", open - 1)) + 1;
+    let selector = text.slice(start, open).replace(/\/\*[\s\S]*?\*\//g, "").trim();
+    if (!selector || selector.startsWith("@")) return null;
+    const block = text.slice(open + 1, close);
+    const declarations = [];
+    for (const part of block.split(";")) {
+      const idx = part.indexOf(":");
+      if (idx < 0) continue;
+      const prop = part.slice(0, idx).trim();
+      const value = part.slice(idx + 1).trim();
+      if (prop) declarations.push({ prop, value });
+    }
+    return { selector, start, open, close, declarations };
+  }
+  function cssPosToCm(index) { return cm.posFromIndex(Math.max(0, Math.min(index, cm.getValue().length))); }
+  function updateRuleDeclarationAt(rule, prop, value) {
+    const span = cssRuleSpan(rule.selector);
+    if (!span) return false;
+    let block = cm.getRange(cssPosToCm(span.open), cssPosToCm(span.close));
+    const re = new RegExp("(^|[;{]\\s*)" + prop.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*:[^;}]*", "m");
+    if (re.test(block)) block = block.replace(re, (all, lead) => lead + prop + ": " + value);
+    else if (value !== "") block = block.replace(/\s*$/, "") + "\n  " + prop + ": " + value + ";\n";
+    cm.replaceRange(block, cssPosToCm(span.open), cssPosToCm(span.close));
+    return true;
+  }
+  function previewElementFor(selector) {
+    try { return $("preview").contentDocument.querySelector(selector); } catch { return null; }
+  }
+  function syncCursorRule() {
+    if (!cm) return;
+    const rule = parseRuleAtCursor();
+    if (!rule) return;
+    state.rule = rule;
+    state.selectedSelector = rule.selector;
+    const el = previewElementFor(rule.selector);
+    if (state.selected && state.selected !== el && state.selected.classList) state.selected.classList.remove("__lyra-selected");
+    state.selected = el;
+    if (el) el.classList.add("__lyra-selected");
+    renderInspector();
+  }
+  function addRuleDeclRow(host, rule, prop, value) {
+    const row = document.createElement("div"); row.className = "dev-decl";
+    row.innerHTML = '<span class="prop"></span><input type="text"><span class="del">×</span>';
+    row.querySelector(".prop").textContent = prop;
+    const inp = row.querySelector("input"); inp.value = value;
+    inp.addEventListener("change", () => {
+      if (updateRuleDeclarationAt(rule, prop, inp.value)) {
+        state.dirty = true; scheduleAutoSave(); updatePreview();
+      }
+    });
+    row.querySelector(".del").addEventListener("click", () => {
+      if (updateRuleDeclarationAt(rule, prop, "")) { state.dirty = true; scheduleAutoSave(); updatePreview(); }
+    });
+    host.appendChild(row);
+  }
+  function renderCurrentRule(rule, el) {
+    $("devSelector").textContent = rule.selector + (el ? "  ·  预览已匹配" : "  ·  预览无匹配元素");
+    const styleBox = $("devStyle");
+    styleBox.innerHTML = "";
+    const box = document.createElement("div"); box.className = "dev-rule";
+    const head = document.createElement("div"); head.className = "dev-rule-head";
+    head.innerHTML = '<span class="sel"></span><span class="jump">光标所在规则</span>';
+    head.querySelector(".sel").textContent = rule.selector;
+    head.addEventListener("click", () => { const pos = cm.posFromIndex(rule.start); cm.setCursor(pos); cm.scrollIntoView(pos, 100); cm.focus(); });
+    box.appendChild(head);
+    if (!rule.declarations.length) box.innerHTML += '<div class="dev-empty">这个规则块还没有声明</div>';
+    for (const decl of rule.declarations) addRuleDeclRow(box, rule, decl.prop, decl.value);
+    const add = document.createElement("div"); add.className = "dev-add";
+    add.innerHTML = '<input placeholder="property"><input placeholder="value"><button type="button">+</button>';
+    const [pi, vi] = add.querySelectorAll("input");
+    add.querySelector("button").addEventListener("click", () => {
+      if (!pi.value.trim()) return;
+      if (updateRuleDeclarationAt(rule, pi.value.trim(), vi.value.trim())) { state.dirty = true; scheduleAutoSave(); updatePreview(); }
+    });
+    box.appendChild(add);
+    styleBox.appendChild(box);
+    if (el) {
+      const inlineWrap = document.createElement("div");
+      inlineWrap.className = "dev-inline";
+      inlineWrap.innerHTML = '<div class="dev-section-title">element.style</div>';
+      for (const decl of Array.from(el.style)) {
+        const row = document.createElement("div"); row.className = "dev-decl";
+        row.innerHTML = '<span class="prop"></span><input type="text"><span class="del">×</span>';
+        row.querySelector(".prop").textContent = decl;
+        const inp = row.querySelector("input"); inp.value = el.style.getPropertyValue(decl);
+        inp.addEventListener("change", () => { el.style.setProperty(decl, inp.value); });
+        row.querySelector(".del").addEventListener("click", () => { el.style.removeProperty(decl); renderInspector(); });
+        inlineWrap.appendChild(row);
+      }
+      styleBox.appendChild(inlineWrap);
+    }
+    const computed = $("devComputed");
+    computed.innerHTML = el ? computedRows(el).map(([k, v]) => '<div class="dev-computed-row"><span class="k">' + escapeHtml(k) + '</span><span class="v">' + escapeHtml(v) + '</span></div>').join("") : '<div class="dev-empty">预览中没有匹配这个选择器的元素</div>';
+  }
+  function renderElementInspector(el) {
+    if (!el) {
+      $("devSelector").textContent = "未选择元素";
+      $("devStyle").innerHTML = '<div class="dev-empty">把光标放在左侧 CSS 规则块里，或点「检查样式」选择预览元素。</div>';
+      $("devComputed").innerHTML = "";
+      return;
+    }
     $("devSelector").textContent = state.selectedSelector;
     const styleBox = $("devStyle");
     styleBox.innerHTML = "";
@@ -498,33 +606,38 @@
     const computed = $("devComputed");
     computed.innerHTML = computedRows(el).map(([k, v]) => '<div class="dev-computed-row"><span class="k">' + escapeHtml(k) + '</span><span class="v">' + escapeHtml(v) + '</span></div>').join("");
   }
+  function renderInspector() {
+    if (state.rule) { renderCurrentRule(state.rule, state.selected); return; }
+    renderElementInspector(state.selected);
+  }
   function updatePreview() {
     try {
       const frame = $("preview");
-      const wasInspecting = state.inspect;
       frame.srcdoc = previewDocument(cm.getValue());
-      if (wasInspecting) setTimeout(() => {
+      setTimeout(() => {
         const doc = frame.contentDocument;
         if (!doc) return;
-        setupPreviewDoc(doc);
-        if (state.selectedSelector) {
-          try {
-            const el = doc.querySelector(state.selectedSelector);
-            if (el) { state.selected = el; el.classList.add("__lyra-selected"); renderInspector(); }
-          } catch { }
+        if (state.inspect) setupPreviewDoc(doc);
+        const rule = parseRuleAtCursor();
+        if (rule) {
+          state.rule = rule;
+          const el = previewElementFor(rule.selector);
+          state.selected = el;
+          if (el) el.classList.add("__lyra-selected");
         }
-      }, 60);
+        renderInspector();
+      }, 80);
     } catch { }
   }
 
   function toggleInspect(force) {
     state.inspect = typeof force === "boolean" ? force : !state.inspect;
     $("inspectBtn").classList.toggle("active", state.inspect);
-    $("devInspector").hidden = !state.inspect;
     if (!state.inspect) {
       if (state.selected) state.selected.classList.remove("__lyra-selected");
       state.selected = null; state.selectedSelector = "";
       setStatus("就绪");
+      syncCursorRule();
     } else {
       bindPreviewInspector();
       setupPreviewDoc($("preview").contentDocument);
@@ -538,8 +651,9 @@
     $("previewRefresh").addEventListener("click", () => updatePreview());
     $("inspectBtn").addEventListener("click", () => toggleInspect());
     $("devClose").addEventListener("click", () => {
-      state.inspect = false; state.selected = null; state.selectedSelector = "";
-      $("inspectBtn").classList.remove("active"); $("devInspector").hidden = true;
+      state.inspect = false; state.selected = null; state.rule = null; state.selectedSelector = "";
+      $("inspectBtn").classList.remove("active");
+      renderInspector();
     });
     document.querySelectorAll(".dev-tab").forEach((tab) => tab.addEventListener("click", () => {
       document.querySelectorAll(".dev-tab").forEach((t) => t.classList.toggle("active", t === tab));
@@ -585,13 +699,13 @@
     cm.on("change", () => { markDirty(); scheduleAutoSave(); clearTimeout(state.statusTimer); state.statusTimer = setTimeout(refreshLint, 600); updatePreview(); });
     cm.setSize("100%", "100%");
     try {
-      const savedSplit = parseFloat(localStorage.getItem("lyra.css.split") || "");
+      const savedSplit = parseFloat(localStorage.getItem("lyra.css.split2") || "");
       if (savedSplit >= 30 && savedSplit <= 78) state.split = savedSplit;
     } catch { }
     const applySplit = (n) => {
       state.split = Math.max(30, Math.min(78, n));
       document.documentElement.style.setProperty("--split", state.split + "%");
-      try { localStorage.setItem("lyra.css.split", String(state.split)); } catch { }
+      try { localStorage.setItem("lyra.css.split2", String(state.split)); } catch { }
     };
     applySplit(state.split);
     try {
@@ -643,8 +757,14 @@
       const el = $("cursorPos");
       if (el) el.textContent = "Ln " + (pos.line + 1) + ", Col " + (pos.ch + 1);
     };
-    cm.on("cursorActivity", updateCursor);
+    let cursorRuleTimer = 0;
+    cm.on("cursorActivity", () => {
+      updateCursor();
+      clearTimeout(cursorRuleTimer);
+      cursorRuleTimer = setTimeout(syncCursorRule, 90);
+    });
     updateCursor();
+    setTimeout(syncCursorRule, 300);
   }
   bind();
   try { applyTheme(localStorage.getItem("lyra.css.theme") || "lyra"); } catch { applyTheme("lyra"); }
