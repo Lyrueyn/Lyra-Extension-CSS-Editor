@@ -7,7 +7,7 @@
   const pathParam = params.get("projectEntry") || params.get("path") || "";
   const host = window.chrome && window.chrome.webview;
   const shellPending = new Map();
-  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 52, problemManual: false };
+  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 52 };
   const THEMES = new Set(["lyra", "violet", "emerald", "sunset", "sakura", "light"]);
   let cm = null;
 
@@ -225,7 +225,6 @@
     const panel = $("problemsPanel");
     if (!panel) return;
     panel.hidden = false;
-    if (!state.problemManual) panel.classList.toggle("collapsed", issues.length === 0);
     $("problemCount").textContent = String(issues.length);
     $("problemSummary").textContent = issues.length ? ("在 1 个文件中发现 " + issues.length + " 个问题") : "未检测到问题";
     const list = $("problemsList");
@@ -292,10 +291,6 @@
     $("format").addEventListener("click", () => { cm.setValue(formatCss(cm.getValue())); markDirty(); updatePreview(); setStatus("已格式化"); });
     $("theme").addEventListener("change", () => applyTheme($("theme").value));
     $("previewRefresh").addEventListener("click", () => updatePreview());
-    $("problemToggle").addEventListener("click", () => {
-      state.problemManual = true;
-      $("problemsPanel").classList.toggle("collapsed");
-    });
     document.addEventListener("keydown", (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") { event.preventDefault(); clearTimeout(state.autoTimer); state.dirty = cm.getValue() !== state.lastSaved; saveFile(false); } });
     window.addEventListener("message", (event) => {
       const d = event.data || {};
@@ -332,6 +327,30 @@
       try { localStorage.setItem("lyra.css.split", String(state.split)); } catch { }
     };
     applySplit(state.split);
+    try {
+      const savedPanel = parseFloat(localStorage.getItem("lyra.css.panelHeight") || "");
+      if (savedPanel >= 100 && savedPanel <= window.innerHeight * 0.65) document.documentElement.style.setProperty("--problems-height", savedPanel + "px");
+    } catch { }
+    const panelSplitter = $("panelSplitter");
+    let panelDragging = false;
+    panelSplitter.addEventListener("mousedown", (event) => {
+      panelDragging = true;
+      event.preventDefault();
+      document.body.style.cursor = "row-resize";
+      document.body.style.userSelect = "none";
+    });
+    window.addEventListener("mousemove", (event) => {
+      if (!panelDragging) return;
+      const h = Math.max(100, Math.min(window.innerHeight * 0.65, window.innerHeight - event.clientY - 7));
+      document.documentElement.style.setProperty("--problems-height", Math.round(h) + "px");
+    });
+    window.addEventListener("mouseup", () => {
+      if (!panelDragging) return;
+      panelDragging = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      try { localStorage.setItem("lyra.css.panelHeight", getComputedStyle(document.getElementById("problemsPanel")).flexBasis); } catch { }
+    });
     const splitter = $("splitter");
     let dragging = false;
     splitter.addEventListener("mousedown", (event) => {
