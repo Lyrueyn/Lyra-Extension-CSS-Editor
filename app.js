@@ -151,7 +151,7 @@
     document.addEventListener("keydown", (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") { event.preventDefault(); saveFile(); } });
     window.addEventListener("message", (event) => {
       const d = event.data || {};
-      if (d.type === "theme" && typeof d.theme === "string") document.documentElement.dataset.theme = d.theme;
+      if (d.type === "theme" && typeof d.theme === "string") applyTheme(d.theme);
       if (d.type === "shell-host-result") {
         const p = shellPending.get(d.requestId);
         if (!p) return;
