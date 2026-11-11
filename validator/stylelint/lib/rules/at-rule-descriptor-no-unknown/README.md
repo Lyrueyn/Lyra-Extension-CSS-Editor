@@ -1,0 +1,71 @@
+# at-rule-descriptor-no-unknown
+
+Disallow unknown descriptors for at-rules.
+
+<!-- prettier-ignore -->
+```css
+@counter-style foo {
+  unknown-descriptor: cyclic;
+/**                ↑
+ * Descriptors like this */
+}
+```
+
+Use this rule to avoid mistyped descriptors. Browsers [ignore unknown descriptors](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Syntax/Error_handling#grammar_check), so a `@font-face` with `srcc` instead of `src` loads nothing.
+
+This rule considers descriptors defined in the CSS Specifications, up to and including Editor's Drafts, to be known.
+
+You can filter the [CSSTree Syntax Reference](https://csstree.github.io/docs/syntax/) to find out what descriptors are known for an at-rule, and use the [`languageOptions`](../../../docs/user-guide/configure.md#languageoptions) configuration property to extend it.
+
+> [!WARNING]
+> This rule is only appropriate for CSS. You should not turn it on for CSS-like languages, such as SCSS or Less.
+
+This rule checks descriptors within at-rules. To check properties, you can use the [`property-no-unknown`](../property-no-unknown/README.md) rule.
+
+This rule supports 2 [message arguments](../../../docs/user-guide/configure.md#message): the at-rule and the unknown descriptor.
+
+Prior art:
+
+- [stylelint-csstree-validator](https://www.npmjs.com/package/stylelint-csstree-validator)
+
+## Options
+
+### `true`
+
+```json
+{
+  "at-rule-descriptor-no-unknown": true
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+@counter-style foo {
+  unknown-descriptor: cyclic;
+}
+```
+
+<!-- prettier-ignore -->
+```css
+@property --foo {
+  unknown-descriptor: "<color>";
+}
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+@counter-style foo {
+  system: cyclic;
+}
+```
+
+<!-- prettier-ignore -->
+```css
+@property --foo {
+  syntax: "<color>";
+}
+```

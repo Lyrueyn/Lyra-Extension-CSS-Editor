@@ -1,0 +1,1324 @@
+import testRule from '../../../testUtils/testRule.mjs';
+
+import rule from '../index.mjs';
+
+const { messages, ruleName } = rule;
+
+testRule({
+	ruleName,
+	config: ['flow-relative'],
+
+	accept: [
+		{
+			code: '',
+		},
+		{
+			code: 'a { color: red; }',
+		},
+		{
+			code: 'a { --foo: 0; }',
+		},
+		{
+			code: 'a { margin-inline-start: 0; }',
+		},
+		{
+			code: 'a { padding-block-end: 0; }',
+		},
+		{
+			code: 'a { inline-size: 0; }',
+		},
+		{
+			code: 'a { scroll-margin-inline-start: 0; }',
+		},
+		{
+			code: 'a { border-start-start-radius: 0; }',
+		},
+		{
+			code: 'a { transition: margin-inline-start 0 ease; }',
+		},
+		{
+			code: 'a { transition: all 0 ease; }',
+		},
+		{
+			code: 'a { transition: none; }',
+		},
+		{
+			code: 'a { transition: var(--foo) 0 ease; }',
+		},
+		{
+			code: 'a { transition: var(--foo, margin-block-start) 0 ease; }',
+		},
+		{
+			code: 'a { will-change: padding-block-end; }',
+		},
+		{
+			code: 'a { will-change: auto; }',
+		},
+		{
+			code: 'a { margin: 0; }',
+		},
+		{
+			code: 'a { margin: var(--foo); }',
+		},
+		{
+			code: 'a { margin: 0 1px 2px 3px 4px; }',
+			description: 'more than four values',
+		},
+		{
+			code: 'a { overflow: hidden auto scroll; }',
+			description: 'more than two values for an axis shorthand',
+		},
+		{
+			code: '@page { margin-left: 0; }',
+		},
+		{
+			code: '@page { @top-left { margin-left: 0; } }',
+		},
+		{
+			code: '@page { margin: 0 1px; }',
+		},
+	],
+
+	reject: [
+		{
+			code: 'a { margin-left: 0; }',
+			message: messages.rejected('physical', 'margin-left'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { padding-top: 0; }',
+			message: messages.rejected('physical', 'padding-top'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { left: 0; }',
+			message: messages.rejected('physical', 'left'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 9,
+		},
+		{
+			code: 'a { width: 0; }',
+			message: messages.rejected('physical', 'width'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 10,
+		},
+		{
+			code: 'a { border-top-left-radius: 0; overflow-x: hidden; }',
+			warnings: [
+				{
+					message: messages.rejected('physical', 'border-top-left-radius'),
+					line: 1,
+					column: 5,
+					endLine: 1,
+					endColumn: 27,
+				},
+				{
+					message: messages.rejected('physical', 'overflow-x'),
+					line: 1,
+					column: 32,
+					endLine: 1,
+					endColumn: 42,
+				},
+			],
+		},
+		{
+			code: 'a { transition: margin-left 0 ease; }',
+			message: messages.rejected('physical', 'margin-left'),
+			line: 1,
+			column: 17,
+			endLine: 1,
+			endColumn: 28,
+		},
+		{
+			code: 'a { transition: var(--foo, left) 0 ease; }',
+			message: messages.rejected('physical', 'left'),
+			line: 1,
+			column: 28,
+			endLine: 1,
+			endColumn: 32,
+		},
+		{
+			code: 'a { transition-property: margin-left; }',
+			message: messages.rejected('physical', 'margin-left'),
+			line: 1,
+			column: 26,
+			endLine: 1,
+			endColumn: 37,
+		},
+		{
+			code: 'a { will-change: margin-left, /* foo */ width; }',
+			warnings: [
+				{
+					message: messages.rejected('physical', 'margin-left'),
+					line: 1,
+					column: 18,
+					endLine: 1,
+					endColumn: 29,
+				},
+				{
+					message: messages.rejected('physical', 'width'),
+					line: 1,
+					column: 41,
+					endLine: 1,
+					endColumn: 46,
+				},
+			],
+		},
+		{
+			code: '@media print { a { margin-left: 0; } }',
+			message: messages.rejected('physical', 'margin-left'),
+			line: 1,
+			column: 20,
+			endLine: 1,
+			endColumn: 31,
+		},
+		{
+			code: 'a { MARGIN-LEFT: 0; }',
+			message: messages.rejected('physical', 'MARGIN-LEFT'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+			description: 'uppercase property name',
+		},
+		{
+			code: 'a { Padding-Top: 0; }',
+			message: messages.rejected('physical', 'Padding-Top'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+			description: 'mixed case property name',
+		},
+		{
+			code: 'a { TRANSITION-PROPERTY: MARGIN-LEFT; }',
+			message: messages.rejected('physical', 'MARGIN-LEFT'),
+			line: 1,
+			column: 26,
+			endLine: 1,
+			endColumn: 37,
+			description: 'uppercase property name in a declaration value',
+		},
+		{
+			code: 'a { margin: 0 1px; }',
+			message: messages.rejected('physical', 'margin'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 11,
+		},
+	],
+});
+
+testRule({
+	ruleName,
+	config: ['physical'],
+
+	accept: [
+		{
+			code: 'a { margin-left: 0; }',
+		},
+		{
+			code: 'a { padding-top: 0; }',
+		},
+		{
+			code: 'a { border-right: 0; }',
+		},
+		{
+			code: 'a { left: 0; }',
+		},
+		{
+			code: 'a { width: 0; }',
+		},
+		{
+			code: 'a { transition-property: margin-left; }',
+		},
+		{
+			code: '@page { margin-inline-start: 0; }',
+		},
+		{
+			code: '@page { @top-left { margin-inline-start: 0; } }',
+		},
+	],
+
+	reject: [
+		{
+			code: 'a { margin-inline-start: 0; }',
+			message: messages.rejected('flow-relative', 'margin-inline-start'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 24,
+		},
+		{
+			code: 'a { padding-block-start: 0; }',
+			message: messages.rejected('flow-relative', 'padding-block-start'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 24,
+		},
+		{
+			code: 'a { inline-size: 0; }',
+			message: messages.rejected('flow-relative', 'inline-size'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { border-start-start-radius: 0; }',
+			message: messages.rejected('flow-relative', 'border-start-start-radius'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 30,
+		},
+		{
+			code: 'a { overflow-inline: hidden; }',
+			message: messages.rejected('flow-relative', 'overflow-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 20,
+		},
+		{
+			code: 'a { margin-inline: 0; }',
+			message: messages.rejected('flow-relative', 'margin-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 18,
+			description: 'shorthand flow-relative property',
+		},
+		{
+			code: 'a { transition-property: margin-inline-start, inline-size; }',
+			warnings: [
+				{
+					message: messages.rejected('flow-relative', 'margin-inline-start'),
+					line: 1,
+					column: 26,
+					endLine: 1,
+					endColumn: 45,
+				},
+				{
+					message: messages.rejected('flow-relative', 'inline-size'),
+					line: 1,
+					column: 47,
+					endLine: 1,
+					endColumn: 58,
+				},
+			],
+		},
+		{
+			code: 'a { MARGIN-INLINE-START: 0; }',
+			message: messages.rejected('flow-relative', 'MARGIN-INLINE-START'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 24,
+			description: 'uppercase property name',
+		},
+		{
+			code: 'a { TRANSITION-PROPERTY: INLINE-SIZE; }',
+			message: messages.rejected('flow-relative', 'INLINE-SIZE'),
+			line: 1,
+			column: 26,
+			endLine: 1,
+			endColumn: 37,
+			description: 'uppercase property name in a declaration value',
+		},
+	],
+});
+
+testRule({
+	ruleName,
+	config: ['flow-relative', { ignoreProperties: ['/^margin/', 'width', 'transition'] }],
+
+	accept: [
+		{
+			code: 'a { margin-left: 0; }',
+		},
+		{
+			code: 'a { margin-right: 0; }',
+		},
+		{
+			code: 'a { width: 0; }',
+		},
+		{
+			code: 'a { transition-property: margin-left, width; }',
+		},
+		{
+			code: 'a { transition: padding-left 0 ease; }',
+		},
+	],
+
+	reject: [
+		{
+			code: 'a { padding-left: 0; }',
+			message: messages.rejected('physical', 'padding-left'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 17,
+		},
+	],
+});
+
+testRule({
+	ruleName,
+	config: ['flow-relative'],
+	languageOptions: {
+		directionality: {
+			block: 'top-to-bottom',
+			inline: 'left-to-right',
+		},
+	},
+	fix: true,
+	computeEditInfo: true,
+
+	accept: [
+		{
+			code: 'a { margin-inline-start: 0; }',
+		},
+	],
+
+	reject: [
+		{
+			code: 'a { margin-left: 0; }',
+			fixed: 'a { margin-inline-start: 0; }',
+			fix: {
+				range: [11, 14],
+				text: 'inline-star',
+			},
+			message: messages.expected('margin-left', 'margin-inline-start'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { padding-top: 0; }',
+			fixed: 'a { padding-block-start: 0; }',
+			fix: {
+				range: [12, 15],
+				text: 'block-start',
+			},
+			message: messages.expected('padding-top', 'padding-block-start'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { left: 0; }',
+			fixed: 'a { inset-inline-start: 0; }',
+			fix: {
+				range: [4, 7],
+				text: 'inset-inline-star',
+			},
+			message: messages.expected('left', 'inset-inline-start'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 9,
+		},
+		{
+			code: 'a { width: 0; }',
+			fixed: 'a { inline-size: 0; }',
+			fix: {
+				range: [4, 9],
+				text: 'inline-size',
+			},
+			message: messages.expected('width', 'inline-size'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 10,
+		},
+		{
+			code: 'a { height: 0; }',
+			fixed: 'a { block-size: 0; }',
+			fix: {
+				range: [4, 10],
+				text: 'block-size',
+			},
+			message: messages.expected('height', 'block-size'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 11,
+		},
+		{
+			code: 'a { overflow-x: hidden; }',
+			fixed: 'a { overflow-inline: hidden; }',
+			fix: {
+				range: [13, 14],
+				text: 'inline',
+			},
+			message: messages.expected('overflow-x', 'overflow-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 15,
+		},
+		{
+			code: 'a { overflow-y: hidden; }',
+			fixed: 'a { overflow-block: hidden; }',
+			fix: {
+				range: [13, 14],
+				text: 'block',
+			},
+			message: messages.expected('overflow-y', 'overflow-block'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 15,
+		},
+		{
+			code: 'a { border-top-left-radius: 0; }',
+			fixed: 'a { border-start-start-radius: 0; }',
+			fix: {
+				range: [11, 18],
+				text: 'start-star',
+			},
+			message: messages.expected('border-top-left-radius', 'border-start-start-radius'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 27,
+		},
+		{
+			code: 'a { transition: margin-left 0 ease; }',
+			fixed: 'a { transition: margin-inline-start 0 ease; }',
+			fix: {
+				range: [23, 26],
+				text: 'inline-star',
+			},
+			message: messages.expected('margin-left', 'margin-inline-start'),
+			line: 1,
+			column: 17,
+			endLine: 1,
+			endColumn: 28,
+		},
+		{
+			code: 'a { transition: var(--foo, left) 0 ease; }',
+			fixed: 'a { transition: var(--foo, inset-inline-start) 0 ease; }',
+			fix: {
+				range: [27, 30],
+				text: 'inset-inline-star',
+			},
+			message: messages.expected('left', 'inset-inline-start'),
+			line: 1,
+			column: 28,
+			endLine: 1,
+			endColumn: 32,
+		},
+		{
+			code: 'a { will-change: margin-left, /* foo */ width; }',
+			fixed: 'a { will-change: margin-inline-start, /* foo */ inline-size; }',
+			warnings: [
+				{
+					message: messages.expected('margin-left', 'margin-inline-start'),
+					fix: {
+						range: [24, 27],
+						text: 'inline-star',
+					},
+					line: 1,
+					column: 18,
+					endLine: 1,
+					endColumn: 29,
+				},
+				{
+					message: messages.expected('width', 'inline-size'),
+					line: 1,
+					column: 41,
+					endLine: 1,
+					endColumn: 46,
+				},
+			],
+		},
+		{
+			code: 'a { MARGIN-LEFT: 0; }',
+			fixed: 'a { margin-inline-start: 0; }',
+			fix: {
+				range: [4, 15],
+				text: 'margin-inline-start',
+			},
+			message: messages.expected('MARGIN-LEFT', 'margin-inline-start'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+			description: 'uppercase property name',
+		},
+		{
+			code: 'a { margin: 0 1px; }',
+			fixed: 'a { margin-block: 0; margin-inline: 1px; }',
+			fix: {
+				range: [10, 13],
+				text: '-block: 0; margin-inline:',
+			},
+			message: messages.expected('margin', 'margin-block', 'margin-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 11,
+		},
+		{
+			code: 'a { margin: 0 1px 2px; }',
+			fixed: 'a { margin-block: 0 2px; margin-inline: 1px; }',
+			fix: {
+				range: [10, 19],
+				text: '-block: 0 2px; margin-inline: 1',
+			},
+			message: messages.expected('margin', 'margin-block', 'margin-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 11,
+		},
+		{
+			code: 'a { margin: 0 1px 2px 3px; transition: margin-left 0 ease; }',
+			fixed:
+				'a { margin-block: 0 2px; margin-inline: 3px 1px; transition: margin-inline-start 0 ease; }',
+			warnings: [
+				{
+					message: messages.expected('margin', 'margin-block', 'margin-inline'),
+					fix: {
+						range: [10, 23],
+						text: '-block: 0 2px; margin-inline: 3px 1',
+					},
+					line: 1,
+					column: 5,
+					endLine: 1,
+					endColumn: 11,
+				},
+				{
+					message: messages.expected('margin-left', 'margin-inline-start'),
+					line: 1,
+					column: 40,
+					endLine: 1,
+					endColumn: 51,
+				},
+			],
+		},
+		{
+			code: 'a { margin: calc(1px + 2px) 0 !important; }',
+			fixed: 'a { margin-block: calc(1px + 2px) !important; margin-inline: 0 !important; }',
+			fix: {
+				range: [10, 27],
+				text: '-block: calc(1px + 2px) !important; margin-inline:',
+			},
+			message: messages.expected('margin', 'margin-block', 'margin-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 11,
+			description: 'function value and !important',
+		},
+		{
+			code: 'a { margin: var(--foo) 0; }',
+			unfixable: true,
+			message: messages.expected('margin', 'margin-block', 'margin-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 11,
+		},
+		{
+			code: 'a { overflow: hidden auto; }',
+			fixed: 'a { overflow-block: auto; overflow-inline: hidden; }',
+			fix: {
+				range: [12, 25],
+				text: '-block: auto; overflow-inline: hidden',
+			},
+			message: messages.expected('overflow', 'overflow-block', 'overflow-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 13,
+		},
+	],
+});
+
+testRule({
+	ruleName,
+	config: ['flow-relative'],
+	languageOptions: {
+		directionality: {
+			block: 'top-to-bottom',
+			inline: 'right-to-left',
+		},
+	},
+	fix: true,
+	computeEditInfo: true,
+
+	reject: [
+		{
+			code: 'a { margin-left: 0; }',
+			fixed: 'a { margin-inline-end: 0; }',
+			fix: {
+				range: [11, 15],
+				text: 'inline-end',
+			},
+			message: messages.expected('margin-left', 'margin-inline-end'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { margin-right: 0; }',
+			fixed: 'a { margin-inline-start: 0; }',
+			fix: {
+				range: [11, 15],
+				text: 'inline-star',
+			},
+			message: messages.expected('margin-right', 'margin-inline-start'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 17,
+		},
+		{
+			code: 'a { padding-top: 0; }',
+			fixed: 'a { padding-block-start: 0; }',
+			fix: {
+				range: [12, 15],
+				text: 'block-start',
+			},
+			message: messages.expected('padding-top', 'padding-block-start'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { width: 0; }',
+			fixed: 'a { inline-size: 0; }',
+			fix: {
+				range: [4, 9],
+				text: 'inline-size',
+			},
+			message: messages.expected('width', 'inline-size'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 10,
+		},
+		{
+			code: 'a { height: 0; }',
+			fixed: 'a { block-size: 0; }',
+			fix: {
+				range: [4, 10],
+				text: 'block-size',
+			},
+			message: messages.expected('height', 'block-size'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 11,
+		},
+		{
+			code: 'a { overflow-x: hidden; }',
+			fixed: 'a { overflow-inline: hidden; }',
+			fix: {
+				range: [13, 14],
+				text: 'inline',
+			},
+			message: messages.expected('overflow-x', 'overflow-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 15,
+		},
+		{
+			code: 'a { overflow-y: hidden; }',
+			fixed: 'a { overflow-block: hidden; }',
+			fix: {
+				range: [13, 14],
+				text: 'block',
+			},
+			message: messages.expected('overflow-y', 'overflow-block'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 15,
+		},
+		{
+			code: 'a { border-top-left-radius: 0; }',
+			fixed: 'a { border-start-end-radius: 0; }',
+			fix: {
+				range: [11, 19],
+				text: 'start-end',
+			},
+			message: messages.expected('border-top-left-radius', 'border-start-end-radius'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 27,
+		},
+		{
+			code: 'a { margin: 0 1px 2px 3px; }',
+			fixed: 'a { margin-block: 0 2px; margin-inline: 1px 3px; }',
+			fix: {
+				range: [10, 19],
+				text: '-block: 0 2px; margin-inline: 1',
+			},
+			message: messages.expected('margin', 'margin-block', 'margin-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 11,
+		},
+	],
+});
+
+testRule({
+	ruleName,
+	config: ['flow-relative'],
+	languageOptions: {
+		directionality: {
+			block: 'bottom-to-top',
+			inline: 'left-to-right',
+		},
+	},
+	fix: true,
+	computeEditInfo: true,
+
+	reject: [
+		{
+			code: 'a { padding-top: 0; }',
+			fixed: 'a { padding-block-end: 0; }',
+			fix: {
+				range: [12, 15],
+				text: 'block-end',
+			},
+			message: messages.expected('padding-top', 'padding-block-end'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { margin-bottom: 0; }',
+			fixed: 'a { margin-block-start: 0; }',
+			fix: {
+				range: [12, 17],
+				text: 'lock-start',
+			},
+			message: messages.expected('margin-bottom', 'margin-block-start'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 18,
+		},
+		{
+			code: 'a { margin-left: 0; }',
+			fixed: 'a { margin-inline-start: 0; }',
+			fix: {
+				range: [11, 14],
+				text: 'inline-star',
+			},
+			message: messages.expected('margin-left', 'margin-inline-start'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { width: 0; }',
+			fixed: 'a { inline-size: 0; }',
+			fix: {
+				range: [4, 9],
+				text: 'inline-size',
+			},
+			message: messages.expected('width', 'inline-size'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 10,
+		},
+		{
+			code: 'a { height: 0; }',
+			fixed: 'a { block-size: 0; }',
+			fix: {
+				range: [4, 10],
+				text: 'block-size',
+			},
+			message: messages.expected('height', 'block-size'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 11,
+		},
+		{
+			code: 'a { overflow-x: hidden; }',
+			fixed: 'a { overflow-inline: hidden; }',
+			fix: {
+				range: [13, 14],
+				text: 'inline',
+			},
+			message: messages.expected('overflow-x', 'overflow-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 15,
+		},
+		{
+			code: 'a { overflow-y: hidden; }',
+			fixed: 'a { overflow-block: hidden; }',
+			fix: {
+				range: [13, 14],
+				text: 'block',
+			},
+			message: messages.expected('overflow-y', 'overflow-block'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 15,
+		},
+		{
+			code: 'a { border-top-left-radius: 0; }',
+			fixed: 'a { border-end-start-radius: 0; }',
+			fix: {
+				range: [11, 18],
+				text: 'end-star',
+			},
+			message: messages.expected('border-top-left-radius', 'border-end-start-radius'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 27,
+		},
+	],
+});
+
+testRule({
+	ruleName,
+	config: ['flow-relative'],
+	languageOptions: {
+		directionality: {
+			block: 'bottom-to-top',
+			inline: 'right-to-left',
+		},
+	},
+	fix: true,
+	computeEditInfo: true,
+
+	reject: [
+		{
+			code: 'a { margin-left: 0; }',
+			fixed: 'a { margin-inline-end: 0; }',
+			fix: {
+				range: [11, 15],
+				text: 'inline-end',
+			},
+			message: messages.expected('margin-left', 'margin-inline-end'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { margin-right: 0; }',
+			fixed: 'a { margin-inline-start: 0; }',
+			fix: {
+				range: [11, 15],
+				text: 'inline-star',
+			},
+			message: messages.expected('margin-right', 'margin-inline-start'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 17,
+		},
+		{
+			code: 'a { padding-top: 0; }',
+			fixed: 'a { padding-block-end: 0; }',
+			fix: {
+				range: [12, 15],
+				text: 'block-end',
+			},
+			message: messages.expected('padding-top', 'padding-block-end'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { margin-bottom: 0; }',
+			fixed: 'a { margin-block-start: 0; }',
+			fix: {
+				range: [12, 17],
+				text: 'lock-start',
+			},
+			message: messages.expected('margin-bottom', 'margin-block-start'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 18,
+		},
+		{
+			code: 'a { width: 0; }',
+			fixed: 'a { inline-size: 0; }',
+			fix: {
+				range: [4, 9],
+				text: 'inline-size',
+			},
+			message: messages.expected('width', 'inline-size'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 10,
+		},
+		{
+			code: 'a { height: 0; }',
+			fixed: 'a { block-size: 0; }',
+			fix: {
+				range: [4, 10],
+				text: 'block-size',
+			},
+			message: messages.expected('height', 'block-size'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 11,
+		},
+		{
+			code: 'a { overflow-x: hidden; }',
+			fixed: 'a { overflow-inline: hidden; }',
+			fix: {
+				range: [13, 14],
+				text: 'inline',
+			},
+			message: messages.expected('overflow-x', 'overflow-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 15,
+		},
+		{
+			code: 'a { overflow-y: hidden; }',
+			fixed: 'a { overflow-block: hidden; }',
+			fix: {
+				range: [13, 14],
+				text: 'block',
+			},
+			message: messages.expected('overflow-y', 'overflow-block'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 15,
+		},
+		{
+			code: 'a { border-top-left-radius: 0; }',
+			fixed: 'a { border-end-end-radius: 0; }',
+			fix: {
+				range: [11, 19],
+				text: 'end-end',
+			},
+			message: messages.expected('border-top-left-radius', 'border-end-end-radius'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 27,
+		},
+	],
+});
+
+testRule({
+	ruleName,
+	config: ['flow-relative'],
+	languageOptions: {
+		directionality: {
+			block: 'right-to-left',
+			inline: 'top-to-bottom',
+		},
+	},
+	fix: true,
+	computeEditInfo: true,
+
+	reject: [
+		{
+			code: 'a { margin-left: 0; }',
+			fixed: 'a { margin-block-end: 0; }',
+			fix: {
+				range: [11, 15],
+				text: 'block-end',
+			},
+			message: messages.expected('margin-left', 'margin-block-end'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { padding-top: 0; }',
+			fixed: 'a { padding-inline-start: 0; }',
+			fix: {
+				range: [12, 15],
+				text: 'inline-start',
+			},
+			message: messages.expected('padding-top', 'padding-inline-start'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { margin-bottom: 0; }',
+			fixed: 'a { margin-inline-end: 0; }',
+			fix: {
+				range: [11, 17],
+				text: 'inline-end',
+			},
+			message: messages.expected('margin-bottom', 'margin-inline-end'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 18,
+		},
+		{
+			code: 'a { width: 0; }',
+			fixed: 'a { block-size: 0; }',
+			fix: {
+				range: [4, 9],
+				text: 'block-size',
+			},
+			message: messages.expected('width', 'block-size'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 10,
+		},
+		{
+			code: 'a { height: 0; }',
+			fixed: 'a { inline-size: 0; }',
+			fix: {
+				range: [4, 10],
+				text: 'inline-size',
+			},
+			message: messages.expected('height', 'inline-size'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 11,
+		},
+		{
+			code: 'a { overflow-x: hidden; }',
+			fixed: 'a { overflow-block: hidden; }',
+			fix: {
+				range: [13, 14],
+				text: 'block',
+			},
+			message: messages.expected('overflow-x', 'overflow-block'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 15,
+		},
+		{
+			code: 'a { overflow-y: hidden; }',
+			fixed: 'a { overflow-inline: hidden; }',
+			fix: {
+				range: [13, 14],
+				text: 'inline',
+			},
+			message: messages.expected('overflow-y', 'overflow-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 15,
+		},
+		{
+			code: 'a { border-top-left-radius: 0; }',
+			fixed: 'a { border-end-start-radius: 0; }',
+			fix: {
+				range: [11, 18],
+				text: 'end-star',
+			},
+			message: messages.expected('border-top-left-radius', 'border-end-start-radius'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 27,
+		},
+		{
+			code: 'a { margin: 0 1px 2px 3px; }',
+			fixed: 'a { margin-block: 1px 3px; margin-inline: 0 2px; }',
+			fix: {
+				range: [10, 23],
+				text: '-block: 1px 3px; margin-inline: 0 2',
+			},
+			message: messages.expected('margin', 'margin-block', 'margin-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 11,
+		},
+		{
+			code: 'a { overflow: hidden auto; }',
+			fixed: 'a { overflow-block: hidden; overflow-inline: auto; }',
+			fix: {
+				range: [12, 20],
+				text: '-block: hidden; overflow-inline:',
+			},
+			message: messages.expected('overflow', 'overflow-block', 'overflow-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 13,
+		},
+	],
+});
+
+testRule({
+	ruleName,
+	config: ['flow-relative'],
+	languageOptions: {
+		directionality: {
+			block: 'left-to-right',
+			inline: 'bottom-to-top',
+		},
+	},
+	fix: true,
+	computeEditInfo: true,
+
+	reject: [
+		{
+			code: 'a { margin-left: 0; }',
+			fixed: 'a { margin-block-start: 0; }',
+			fix: {
+				range: [11, 14],
+				text: 'block-star',
+			},
+			message: messages.expected('margin-left', 'margin-block-start'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { padding-top: 0; }',
+			fixed: 'a { padding-inline-end: 0; }',
+			fix: {
+				range: [12, 15],
+				text: 'inline-end',
+			},
+			message: messages.expected('padding-top', 'padding-inline-end'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { margin-bottom: 0; }',
+			fixed: 'a { margin-inline-start: 0; }',
+			fix: {
+				range: [11, 17],
+				text: 'inline-start',
+			},
+			message: messages.expected('margin-bottom', 'margin-inline-start'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 18,
+		},
+		{
+			code: 'a { width: 0; }',
+			fixed: 'a { block-size: 0; }',
+			fix: {
+				range: [4, 9],
+				text: 'block-size',
+			},
+			message: messages.expected('width', 'block-size'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 10,
+		},
+		{
+			code: 'a { overflow-x: hidden; }',
+			fixed: 'a { overflow-block: hidden; }',
+			fix: {
+				range: [13, 14],
+				text: 'block',
+			},
+			message: messages.expected('overflow-x', 'overflow-block'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 15,
+		},
+		{
+			code: 'a { height: 0; }',
+			fixed: 'a { inline-size: 0; }',
+			fix: {
+				range: [4, 10],
+				text: 'inline-size',
+			},
+			message: messages.expected('height', 'inline-size'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 11,
+		},
+		{
+			code: 'a { overflow-y: hidden; }',
+			fixed: 'a { overflow-inline: hidden; }',
+			fix: {
+				range: [13, 14],
+				text: 'inline',
+			},
+			message: messages.expected('overflow-y', 'overflow-inline'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 15,
+		},
+		{
+			code: 'a { border-top-left-radius: 0; }',
+			fixed: 'a { border-start-end-radius: 0; }',
+			fix: {
+				range: [11, 19],
+				text: 'start-end',
+			},
+			message: messages.expected('border-top-left-radius', 'border-start-end-radius'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 27,
+		},
+	],
+});
+
+testRule({
+	ruleName,
+	config: ['flow-relative'],
+	languageOptions: {
+		directionality: {},
+	},
+
+	reject: [
+		{
+			code: 'a { margin-left: 0; }',
+			message: messages.rejected('physical', 'margin-left'),
+			line: 1,
+			column: 5,
+			endLine: 1,
+			endColumn: 16,
+		},
+	],
+});

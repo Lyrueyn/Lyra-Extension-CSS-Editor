@@ -1,0 +1,113 @@
+# media-feature-name-no-unknown
+
+Disallow unknown media feature names.
+
+<!-- prettier-ignore -->
+```css
+@media (min-width: 700px) {}
+/**     ↑
+ * This media feature name */
+```
+
+Use this rule to avoid mistyped media feature names, e.g. `min-widht`. Browsers [evaluate the query to `unknown`](https://drafts.csswg.org/mediaqueries-5/#error-handling), so its block never applies.
+
+This rule considers media feature names defined in the CSS Specifications, up to and including Editor's Drafts, to be known.
+
+This rule ignores vendor-prefixed media feature names.
+
+This rule supports 1 [message argument](../../../docs/user-guide/configure.md#message): the unknown media feature name.
+
+## Options
+
+### `true`
+
+```json
+{
+  "media-feature-name-no-unknown": true
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+@media screen and (unknown) {}
+```
+
+<!-- prettier-ignore -->
+```css
+@media screen and (unknown: 10px) {}
+```
+
+<!-- prettier-ignore -->
+```css
+@media screen and (unknown > 10px) {}
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+@media all and (monochrome) {}
+```
+
+<!-- prettier-ignore -->
+```css
+@media (min-width: 700px) {}
+```
+
+<!-- prettier-ignore -->
+```css
+@media (MIN-WIDTH: 700px) {}
+```
+
+<!-- prettier-ignore -->
+```css
+@media (min-width: 700px) and (orientation: landscape) {}
+```
+
+<!-- prettier-ignore -->
+```css
+@media (-webkit-min-device-pixel-ratio: 2) {}
+```
+
+## Optional secondary options
+
+### `ignoreMediaFeatureNames`
+
+```json
+{ "ignoreMediaFeatureNames": ["array", "of", "media-features", "/regex/"] }
+```
+
+Given:
+
+```json
+{
+  "media-feature-name-no-unknown": [
+    true,
+    { "ignoreMediaFeatureNames": ["/^my-/", "custom"] }
+  ]
+}
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+@media screen and (my-media-feature-name) {}
+```
+
+<!-- prettier-ignore -->
+```css
+@media screen and (custom: 10px) {}
+```
+
+<!-- prettier-ignore -->
+```css
+@media screen and (100px < custom < 700px) {}
+```
+
+<!-- prettier-ignore -->
+```css
+@media (min-width: 700px) and (custom: 10px) {}
+```

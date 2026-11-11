@@ -1,0 +1,101 @@
+# property-allowed-list
+
+Specify a list of allowed properties.
+
+<!-- prettier-ignore -->
+```css
+a { color: red; }
+/** ↑
+ * This property */
+```
+
+Use this rule to enforce a subset of properties as a convention. For example, via `overrides`, allow only:
+
+- `/^--/` in a tokens file
+- `/^(margin|padding|font)/` in a reset
+
+This rule ignores preprocessor variables (e.g. `$sass`, `@less`).
+
+This rule supports 1 [message argument](../../../docs/user-guide/configure.md#message): the disallowed property.
+
+## Options
+
+### `Array<string>`
+
+```json
+["array", "of", "properties", "/regex/"]
+```
+
+Given:
+
+```json
+{
+  "property-allowed-list": [
+    "display",
+    "/^(-webkit-)?animation/",
+    "/^background/",
+    "--foo"
+  ]
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { color: red; }
+```
+
+<!-- prettier-ignore -->
+```css
+a {
+  animation: my-animation 2s;
+  color: red;
+}
+```
+
+<!-- prettier-ignore -->
+```css
+a { borkgrund: orange; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { --bar: red; }
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { display: block; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { -webkit-animation: my-animation 2s; }
+```
+
+<!-- prettier-ignore -->
+```css
+a {
+  animation: my-animation 2s;
+  -webkit-animation: my-animation 2s;
+  display: block;
+}
+```
+
+<!-- prettier-ignore -->
+```css
+a { background: red; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { background-color: red; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { --foo: red; }
+```

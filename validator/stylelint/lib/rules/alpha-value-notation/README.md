@@ -1,0 +1,128 @@
+# alpha-value-notation
+
+Specify percentage or number notation for alpha-values.
+
+<!-- prettier-ignore -->
+```css
+    a { color: rgb(0 0 0 / 0.5) }
+/**                        ↑
+ *                         This notation */
+```
+
+Use this rule to enforce a convention. An [alpha-value](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/alpha-value) can be a number from `0` to `1` or a percentage. Choose one for consistency.
+
+The [`fix` option](../../../docs/user-guide/options.md#fix) can automatically fix all of the problems reported by this rule.
+
+This rule supports 2 [message arguments](../../../docs/user-guide/configure.md#message): the alpha value and its expected notation.
+
+## Options
+
+### `"number"`
+
+Alpha-values _must always_ use the number notation.
+
+```json
+{
+  "alpha-value-notation": "number"
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { opacity: 50% }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: rgb(0 0 0 / 50%) }
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { opacity: 0.5 }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: rgb(0 0 0 / 0.5) }
+```
+
+### `"percentage"`
+
+Alpha-values _must always_ use percentage notation.
+
+```json
+{
+  "alpha-value-notation": "percentage"
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { opacity: 0.5 }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: rgb(0 0 0 / 0.5) }
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { opacity: 50% }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: rgb(0 0 0 / 50%) }
+```
+
+## Optional secondary options
+
+### `exceptProperties`
+
+```json
+{ "exceptProperties": ["array", "of", "properties", "/regex/"] }
+```
+
+Reverse the primary option for matching properties.
+
+Given:
+
+```json
+{
+  "alpha-value-notation": ["percentage", { "exceptProperties": ["opacity"] }]
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { opacity: 50% }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: rgb(0 0 0 / 0.5) }
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { opacity: 0.5 }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: rgb(0 0 0 / 50%) }
+```

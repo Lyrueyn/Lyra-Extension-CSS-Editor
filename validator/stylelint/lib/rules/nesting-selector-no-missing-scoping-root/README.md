@@ -1,0 +1,105 @@
+# nesting-selector-no-missing-scoping-root
+
+Disallow missing scoping root for nesting selectors.
+
+<!-- prettier-ignore -->
+```css
+    & {}
+/** ↑
+ * This nesting selector */
+```
+
+Use this rule to avoid styling the root element by mistake. Browsers [resolve `&` outside a nested rule to the root element](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Selectors/Nesting_selector#using_outside_nested_rule), as there is no parent to refer to.
+
+This rule doesn't have any [message arguments](../../../docs/user-guide/configure.md#message).
+
+## Options
+
+### `true`
+
+```json
+{
+  "nesting-selector-no-missing-scoping-root": true
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+& {}
+```
+
+<!-- prettier-ignore -->
+```css
+@media all {
+  & {}
+}
+```
+
+<!-- prettier-ignore -->
+```css
+@scope (&) {}
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+a {
+  & {}
+}
+```
+
+<!-- prettier-ignore -->
+```css
+a {
+  @media all {
+    & {}
+  }
+}
+```
+
+<!-- prettier-ignore -->
+```css
+a {
+  @scope (&) {}
+}
+```
+
+## Optional secondary options
+
+### `ignoreAtRules`
+
+```json
+{ "ignoreAtRules": ["array", "of", "at-rules", "/regex/"] }
+```
+
+Ignore nesting selectors within specified at-rules.
+
+Given:
+
+```json
+{
+  "nesting-selector-no-missing-scoping-root": [
+    true,
+    { "ignoreAtRules": ["--foo", "/^--bar-/"] }
+  ]
+}
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+@--foo {
+  & {}
+}
+```
+
+<!-- prettier-ignore -->
+```css
+@--bar-baz qux {
+  & {}
+}
+```

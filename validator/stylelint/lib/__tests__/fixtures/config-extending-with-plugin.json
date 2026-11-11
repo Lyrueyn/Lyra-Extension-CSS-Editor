@@ -1,0 +1,3 @@
+{
+	"extends": ["./config-extending-two.json", "./config-relative-plugin.json"]
+}

@@ -1,0 +1,1268 @@
+import stripIndent from '../../../testUtils/stripIndent.mjs';
+import testRule from '../../../testUtils/testRule.mjs';
+import testRuleConfigs from '../../../testUtils/testRuleConfigs.mjs';
+
+import rule from '../index.mjs';
+const { messages, ruleName } = rule;
+
+testRule({
+	ruleName,
+	config: true,
+
+	accept: [
+		{
+			code: 'a { top: 0; }',
+		},
+		{
+			code: 'a { @starting-style { opacity: 0; } }',
+		},
+		{
+			code: 'a { @media screen { top: 0; } }',
+		},
+		{
+			code: 'a { margin: auto 10em; }',
+		},
+		{
+			code: 'a { margin-inline: calc(100% - 10px); }',
+		},
+		{
+			code: 'a { top: var(--foo); }',
+		},
+		{
+			code: 'a { --foo: red; color: var(--foo); }',
+		},
+		{
+			code: 'a { --foo: 0; --foo: red; top: var(--foo); }',
+			description: 'a value of the custom property is known',
+		},
+		{
+			code: 'a { --foo: 1px 2px; padding: var(--foo); }',
+			description: 'custom property with more than one component',
+		},
+		{
+			code: 'a { --foo: initial; top: var(--foo); }',
+			description: 'custom property with a CSS-wide keyword',
+		},
+		{
+			code: 'a { --foo: ; top: var(--foo); }',
+			description: 'custom property with an empty value',
+		},
+		{
+			code: 'a { --foo: var(--foo); top: var(--foo); }',
+			description: 'cyclic custom property',
+		},
+		{
+			code: 'a { color: var(); }',
+			description: 'var() without a custom property',
+		},
+		{
+			code: 'a { top: env(titlebar-area-height); }',
+		},
+		{
+			code: 'a { line-height: random(10, 50); }',
+		},
+		{
+			code: 'a { z-index: sibling-index(); }',
+		},
+		{
+			code: 'a { opacity: progress(50, 0, 100); }',
+		},
+		{
+			code: 'a { foo: 1px; }',
+		},
+		{
+			code: 'a { --foo: 1px; }',
+		},
+		{
+			code: 'a { color: lightgrey; }',
+		},
+		{
+			code: 'a { color: lightgray; }',
+		},
+		{
+			code: 'a { color: oklch(from red l c calc(h / 2) / alpha); }',
+		},
+		{
+			code: 'a { display: -moz-inline-stack; }',
+		},
+		{
+			code: 'a { color: -moz-initial; }',
+		},
+		{
+			code: 'a { font-size: clamp(1rem, 1vw + 1rem, 3rem); }',
+		},
+		{
+			code: 'a { font-size: min(1rem, 3rem); }',
+		},
+		{
+			code: 'a { font-size: max(1rem, 3rem); }',
+		},
+		{
+			code: 'a { font-size: larger; }',
+		},
+		{
+			code: 'a { font-size: math; }',
+		},
+		{
+			code: 'a { font-family: math; }',
+		},
+		{
+			code: 'a { font: math math; }',
+		},
+		{
+			code: 'a { font: math math, math; }',
+		},
+		{
+			code: 'a { word-break: auto-phrase; }',
+		},
+		{
+			code: 'a { overflow: overlay; }',
+		},
+		{
+			code: 'a { width: min-intrinsic; }',
+		},
+		{
+			code: 'a { view-timeline: --bar x; }',
+		},
+		{
+			code: 'a { view-timeline: --qux inline 1px 2px; }',
+		},
+		{
+			code: 'a { anchor-name: --bar, --qux; }',
+		},
+		{
+			code: '@font-face { font-weight: bolder; }',
+			description: 'ignore descriptors with unknown values',
+		},
+		{
+			code: 'a { color: ); }',
+			description: 'ignore unparsable values',
+		},
+		{
+			code: 'a { height: calc(2px + 2); }',
+			description: 'ignore invalid math expressions`',
+		},
+		{
+			code: stripIndent`
+				a { font-weight: bolder; }
+				@font-face { font-weight: 100 200; }
+			`,
+			description: 'at-rule descriptor and property with the same name but different syntaxes',
+		},
+		{
+			code: stripIndent`
+				a { --foo: 10px; }
+				@property --foo {
+					syntax: not-a-string;
+					inherits: false;
+					initial-value: #c0ffee;
+				}
+			`,
+			description: 'ignore descriptors with unknown values',
+		},
+		{
+			code: stripIndent`
+				a { --foo: red; }
+
+				@property --foo {
+					syntax: "<color>";
+					inherits: false;
+					initial-value: #c0ffee;
+				}
+			`,
+		},
+		{
+			code: stripIndent`
+				a { --foo: 10px; }
+				a { --foo: 10%; }
+
+				@property --foo {
+					syntax: "<length> | <percentage>";
+					inherits: false;
+					initial-value: 10px;
+				}
+			`,
+		},
+		{
+			code: stripIndent`
+				a { --foo: bigger; }
+				a { --foo: BIGGER; }
+
+				@property --foo {
+					syntax: "big | bigger | BIGGER";
+					inherits: false;
+					initial-value: big;
+				}
+			`,
+		},
+		{
+			code: stripIndent`
+				a { --foo: 10px; }
+				a { --foo: 10px 10vh; }
+
+				@property --foo {
+					syntax: "<length>+";
+					inherits: false;
+					initial-value: 10px;
+				}
+			`,
+		},
+		{
+			code: stripIndent`
+				a { --foo: red; }
+				a { --foo: 10px 10vh; }
+
+				@property --foo {
+					syntax: "*";
+					inherits: false;
+					initial-value: 10px;
+				}
+			`,
+		},
+		{
+			code: stripIndent`
+				a { --foo: var(--bar); }
+				@property --foo {
+					syntax: "<color>";
+					inherits: false;
+					initial-value: #c0ffee;
+				}
+			`,
+		},
+		{
+			code: stripIndent`
+				@property --foo { syntax: "<color> | <length>"; inherits: false; initial-value: red; }
+				a { --foo: 1px; top: var(--foo); }
+			`,
+		},
+		{
+			code: stripIndent`
+				@property --foo { syntax: "<color> | <length>"; }
+				a { top: var(--foo); }
+			`,
+		},
+		{
+			code: stripIndent`
+				@property --foo { syntax: "<custom-ident>"; }
+				a { color: var(--foo); }
+			`,
+			description: 'syntax with <custom-ident>',
+		},
+		{
+			code: stripIndent`
+				@property --foo { syntax: "<color"; }
+				a { --foo: 1px; top: var(--foo); }
+			`,
+			description: 'syntax string that cannot be parsed',
+		},
+		{
+			code: stripIndent`a {
+				top: /* stylelint-disable-next-line declaration-property-value-no-unknown */
+					red;
+			}`,
+		},
+		{
+			code: 'a { height: calc-size(auto, size); }',
+		},
+		{
+			code: 'a { width: calc-size(auto, round(up, size, 1px)); }',
+		},
+		{
+			code: 'a { height: calc-size(max-content, size + 2rem); }',
+		},
+		{
+			code: 'a { height: calc-size(calc-size(max-content, size), size + 2rem); }',
+		},
+		{
+			code: 'a { transition-timing-function: linear(0 0%, 0.999 44.8%, 0.866 58.4%, 0.998 77.2%, 1 100%) }',
+		},
+		{
+			code: 'a { container-type: scroll-state }',
+		},
+		{
+			code: 'a { inset: anchor(center) }',
+		},
+		{
+			code: stripIndent`a {
+				background: linear-gradient(in hsl longer hue, red, red);
+				background: radial-gradient(in hsl longer hue, red, red);
+				background: conic-gradient(in hsl longer hue, red, red);
+				background: repeating-linear-gradient(in hsl longer hue, red, red 50px);
+				background: repeating-radial-gradient(in hsl longer hue, red, red 50px);
+				background: repeating-conic-gradient(in hsl longer hue, red 0%, yellow 15%, red 33%);
+			}`,
+		},
+		{
+			code: 'a { appearance: base-select }',
+		},
+		{
+			code: 'a { height: calc(2px * 2); }',
+			description: 'calc with valid multiplication',
+		},
+		{
+			code: 'a { height: calc(10px / 2); }',
+			description: 'calc with valid division',
+		},
+		{
+			code: 'a { height: calc(10px + 20px); }',
+			description: 'calc with dimension + dimension',
+		},
+		{
+			code: 'a { height: calc(100% - 10px); }',
+			description: 'calc with percentage - dimension',
+		},
+		{
+			code: 'a { height: calc(10px + 10%); }',
+			description: 'calc with dimension + percentage',
+		},
+		{
+			code: 'a { height: calc(2 * 3px); }',
+			description: 'calc with number * dimension',
+		},
+		{
+			code: 'a { height: calc(var(--foo) + 2); }',
+			description: 'calc with var() of an unknown custom property is skipped',
+		},
+		{
+			code: 'a { height: calc(var(--foo) * 2); }',
+			description: 'calc with var() multiplication of an unknown custom property is skipped',
+		},
+		{
+			code: 'a { z-index: calc(2); }',
+			description: 'calc resulting in number for property that accepts number',
+		},
+		{
+			code: 'a { z-index: calc(2 + 2); }',
+			description: 'calc resulting in number for property that accepts number',
+		},
+		{
+			code: 'a { opacity: calc(0.5 + 0.3); }',
+			description: 'calc resulting in number for property that accepts number',
+		},
+		{
+			code: 'a { width: min(10px, 20px); }',
+			description: 'min function with valid dimensions',
+		},
+		{
+			code: 'a { width: max(10px, 20px); }',
+			description: 'max function with valid dimensions',
+		},
+		{
+			code: 'a { width: clamp(10px, 50%, 100px); }',
+			description: 'clamp function with valid dimensions',
+		},
+		{
+			code: 'a { height: calc(env(--some-var) + 10px); }',
+			description: 'calc with env() is skipped',
+		},
+		{
+			code: 'a { width: round(nearest, 10px, 1px); }',
+			description: 'round function with valid dimensions',
+		},
+		{
+			code: 'a { width: mod(10px, 3px); }',
+			description: 'mod function with valid dimensions',
+		},
+		{
+			code: 'a { width: rem(10px, 3px); }',
+			description: 'rem function with valid dimensions',
+		},
+		{
+			code: 'a { width: abs(-10px); }',
+			description: 'abs function with valid dimension',
+		},
+		{
+			code: 'a { z-index: sign(-10); }',
+			description: 'sign function with valid number',
+		},
+		{
+			code: 'a { width: calc(abs(10px) + max(5px, 2px)); }',
+			description: 'nested math functions without type mix',
+		},
+		{
+			code: 'a { width: max(min(10px, 20px), 5px); }',
+			description: 'nested min inside max function',
+		},
+		{
+			code: 'a { width: calc(clamp(5px, 10px, 15px) + 5px); }',
+			description: 'calc with nested clamp function',
+		},
+		{
+			code: 'a { width: calc(10px * 2 / 2); }',
+			description: 'calc with multiplication and division (no type mix)',
+		},
+		{
+			code: 'a { font-size: calc(1em + 2px); }',
+			description: 'calc with different length units (valid)',
+		},
+		{
+			code: 'a { line-height: calc(1.5 * 1.2); }',
+			description: 'calc with number multiplication for unitless property',
+		},
+		{
+			code: 'a { flex-grow: calc(2 - 1); }',
+			description: 'calc with number subtraction for number property',
+		},
+		{
+			code: 'a { width: hypot(3px, 4px); }',
+			description: 'hypot function with dimensions',
+		},
+		{
+			code: 'a { rotate: atan2(1, 1); }',
+			description: 'atan2 function with numbers',
+		},
+		{
+			code: 'a { width: calc(sqrt(4) * 1px); }',
+			description: 'sqrt function in calc',
+		},
+		{
+			code: 'a { width: calc(); }',
+			description: 'calc with no arguments (empty tokens)',
+		},
+		{
+			code: '@property { syntax: "<color>"; }',
+			description: '@property rule with empty params (no property name)',
+		},
+		{
+			code: '@property foo { syntax: "<color>"; }',
+			description: '@property rule with non-custom property name',
+		},
+		{
+			code: '@font-face { src: url("font.woff2"); }',
+			description: 'descriptor declaration inside @font-face (standard syntax)',
+		},
+		{
+			code: '@counter-style thumbs { system: cyclic; }',
+			description: 'descriptor declaration inside @counter-style',
+		},
+		{
+			code: '@page { margin: 1cm; }',
+			description: 'descriptor declaration inside @page',
+		},
+		{
+			code: 'a { top: calc(0.3 * 100% + 10px); }',
+			description: 'mixed units and percentages checking respects operator precedence',
+		},
+		{
+			code: 'a { top: calc(0.3 * 100vh + 15px); }',
+			description: 'mixed units and percentages checking respects operator precedence',
+		},
+		{
+			code: 'a { margin-inline: calc(10px)calc(20px); }',
+			description: 'functions can be written without separating whitespace',
+		},
+	],
+
+	reject: [
+		{
+			code: 'a { text-box-edge: text ex; }',
+			message: messages.rejected('text-box-edge', 'ex', []),
+			line: 1,
+			column: 25,
+			endLine: 1,
+			endColumn: 27,
+		},
+		{
+			code: 'a { text-box-trim: foo; }',
+			message: messages.rejected('text-box-trim', 'foo', []),
+			line: 1,
+			column: 20,
+			endLine: 1,
+			endColumn: 23,
+		},
+		{
+			code: 'a { text-spacing-trim: bar; }',
+			message: messages.rejected('text-spacing-trim', 'bar', []),
+			line: 1,
+			column: 24,
+			endLine: 1,
+			endColumn: 27,
+		},
+		{
+			code: 'a { text-wrap: foo; }',
+			message: messages.rejected('text-wrap', 'foo', []),
+			line: 1,
+			column: 16,
+			endLine: 1,
+			endColumn: 19,
+		},
+		{
+			code: 'a { view-timeline-name: foo; }',
+			message: messages.rejected('view-timeline-name', 'foo', []),
+			line: 1,
+			column: 25,
+			endLine: 1,
+			endColumn: 28,
+		},
+		{
+			code: 'a { view-transition-name:; }',
+			message: messages.rejected('view-transition-name', '', []),
+			line: 1,
+			column: 26,
+			endLine: 1,
+			endColumn: 27,
+		},
+		{
+			code: 'a { anchor-name: foo; }',
+			message: messages.rejected('anchor-name', 'foo', []),
+			line: 1,
+			column: 18,
+			endLine: 1,
+			endColumn: 21,
+		},
+		{
+			code: 'a { field-sizing: bar; }',
+			message: messages.rejected('field-sizing', 'bar', []),
+			line: 1,
+			column: 19,
+			endLine: 1,
+			endColumn: 22,
+		},
+		{
+			code: 'a { top: unknown; }',
+			message: messages.rejected('top', 'unknown', []),
+			line: 1,
+			column: 10,
+			endLine: 1,
+			endColumn: 17,
+		},
+		{
+			code: 'a { height: calc-size(foo, 10px * 1.5); }',
+			message: messages.rejected('height', 'calc-size(foo, 10px * 1.5)', []),
+			line: 1,
+			column: 13,
+			endLine: 1,
+			endColumn: 39,
+			description: 'calc-size without size keyword is still validated',
+		},
+		{
+			code: 'a { @media screen { top: unknown; } }',
+			message: messages.rejected('top', 'unknown', []),
+			line: 1,
+			column: 26,
+			endLine: 1,
+			endColumn: 33,
+		},
+		{
+			code: '@keyframes foo { from { top: unknown; } }',
+			message: messages.rejected('top', 'unknown', []),
+			line: 1,
+			column: 30,
+			endLine: 1,
+			endColumn: 37,
+		},
+		{
+			code: 'a { @starting-style { padding: auto; } }',
+			message: messages.rejected('padding', 'auto', []),
+			line: 1,
+			column: 32,
+			endLine: 1,
+			endColumn: 36,
+		},
+		{
+			code: 'a { top: red; }',
+			message: messages.rejected('top', 'red', []),
+			line: 1,
+			column: 10,
+			endLine: 1,
+			endColumn: 13,
+		},
+		{
+			code: stripIndent`a {
+				top: /* a comment */
+					red;
+			}`,
+			message: messages.rejected('top', 'red', []),
+			line: 3,
+			column: 6,
+			endLine: 3,
+			endColumn: 9,
+		},
+		{
+			code: 'a { color: ; }',
+			message: messages.rejected('color', '', []),
+			line: 1,
+			column: 12,
+			endLine: 1,
+			endColumn: 13,
+		},
+		{
+			code: 'a { padding: auto; }',
+			message: messages.rejected('padding', 'auto', []),
+			line: 1,
+			column: 14,
+			endLine: 1,
+			endColumn: 18,
+		},
+		{
+			code: 'a { display: fixed }',
+			message: messages.rejected('display', 'fixed', []),
+			line: 1,
+			column: 14,
+			endLine: 1,
+			endColumn: 19,
+		},
+		{
+			code: 'a { transition: background-color 0.6s ease-in-out 0; }',
+			message: messages.rejected('transition', '0', []),
+			line: 1,
+			column: 51,
+			endLine: 1,
+			endColumn: 52,
+		},
+		{
+			code: 'a { margin-top: "10px"; }',
+			message: messages.rejected('margin-top', '"10px"', []),
+			line: 1,
+			column: 17,
+			endLine: 1,
+			endColumn: 23,
+		},
+		{
+			code: 'a { color: greem; }',
+			message: messages.rejected('color', 'greem', []),
+			line: 1,
+			column: 12,
+			endLine: 1,
+			endColumn: 17,
+		},
+		{
+			code: 'a { color: random(10, 50); }',
+			message: messages.rejected('color', 'random(10, 50)', []),
+			line: 1,
+			column: 12,
+			endLine: 1,
+			endColumn: 26,
+			description: 'random() resulting in number where color is expected',
+		},
+		{
+			code: 'a { color: min(1px, 2%); }',
+			message: messages.rejected('color', 'min(1px, 2%)', []),
+			line: 1,
+			column: 12,
+			endLine: 1,
+			endColumn: 24,
+			description: 'unsolvable math function matched by csstree',
+		},
+		{
+			code: stripIndent`
+				a { --foo: 10px; }
+				@property --foo {
+					syntax: "<color>";
+					inherits: false;
+					initial-value: #c0ffee;
+				}
+			`,
+			message: messages.rejected('--foo', '10px', [], '<color>'),
+			line: 1,
+			column: 12,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { font-family: "Foo" serif; }',
+			message: messages.rejected('font-family', 'serif', []),
+			line: 1,
+			column: 24,
+			endLine: 1,
+			endColumn: 29,
+		},
+		{
+			code: 'a { font-family: "Foo"  serif; }',
+			message: messages.rejected('font-family', 'serif', []),
+			line: 1,
+			column: 25,
+			endLine: 1,
+			endColumn: 30,
+		},
+		{
+			code: 'a { font-family: serif sans-serif; }',
+			message: messages.rejected('font-family', 'sans-serif', []),
+			line: 1,
+			column: 24,
+			endLine: 1,
+			endColumn: 34,
+		},
+		{
+			code: 'a { font-family: math math; }',
+			message: messages.rejected('font-family', 'math', []),
+			line: 1,
+			column: 23,
+			endLine: 1,
+			endColumn: 27,
+		},
+		{
+			code: 'a { font: serif; }',
+			message: messages.rejected('font', 'serif', []),
+			line: 1,
+			column: 11,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { font: math; }',
+			message: messages.rejected('font', '', []),
+			line: 1,
+			column: 15,
+			endLine: 1,
+			endColumn: 16,
+		},
+		{
+			code: 'a { color: rgb(67 67 67 70%); }',
+			message: messages.rejected('color', 'rgb(67 67 67 70%)', []),
+			line: 1,
+			column: 12,
+			endLine: 1,
+			endColumn: 29,
+		},
+		{
+			code: 'a { box-shadow: 0 4px 8px 0 rgba(#ff611d, 0.5); }',
+			message: messages.rejected('box-shadow', 'rgba(#ff611d, 0.5)', []),
+			line: 1,
+			column: 29,
+			endLine: 1,
+			endColumn: 47,
+			description: 'a hex color inside rgba()',
+		},
+		{
+			code: 'a { color: hsl(#ff611d, 50%, 50%); }',
+			message: messages.rejected('color', 'hsl(#ff611d, 50%, 50%)', []),
+			line: 1,
+			column: 12,
+			endLine: 1,
+			endColumn: 34,
+			description: 'a hex color inside hsl()',
+		},
+		{
+			code: 'a { background-color: color-mix(in unknown, red, blue); }',
+			message: messages.rejected('background-color', 'color-mix(in unknown, red, blue)', []),
+			line: 1,
+			column: 23,
+			endLine: 1,
+			endColumn: 55,
+			description: 'an unknown color space in color-mix()',
+		},
+		{
+			code: 'a { background: rgba(255, 255); }',
+			message: messages.rejected('background', 'rgba(255, 255)', []),
+			line: 1,
+			column: 17,
+			endLine: 1,
+			endColumn: 31,
+			description: 'too few arguments in rgba()',
+		},
+		{
+			code: 'a { color: rgb(from red, r, g, b); }',
+			message: messages.rejected('color', 'rgb(from red, r, g, b)', []),
+			line: 1,
+			column: 12,
+			endLine: 1,
+			endColumn: 34,
+			description: 'legacy syntax does not support relative colors',
+		},
+		{
+			code: 'a { color: rgb(from red l c h); }',
+			message: messages.rejected('color', 'rgb(from red l c h)', []),
+			line: 1,
+			column: 12,
+			endLine: 1,
+			endColumn: 31,
+			description: 'component keywords are specific to each color function',
+		},
+		{
+			code: 'a { height: calc(2); }',
+			message: messages.rejected('height', 'calc(2)', []),
+			line: 1,
+			column: 13,
+			endLine: 1,
+			endColumn: 20,
+			description: 'calc resulting in number where length is expected',
+		},
+		{
+			code: 'a { height: calc(2 + 2); }',
+			message: messages.rejected('height', 'calc(2 + 2)', []),
+			line: 1,
+			column: 13,
+			endLine: 1,
+			endColumn: 24,
+			description: 'calc resulting in number where length is expected',
+		},
+		{
+			code: 'a { height: calc(2 * 2); }',
+			message: messages.rejected('height', 'calc(2 * 2)', []),
+			line: 1,
+			column: 13,
+			endLine: 1,
+			endColumn: 24,
+			description: 'calc resulting in number where length is expected',
+		},
+		{
+			code: 'a { margin-inline: calc(3px - 1px) calc(3 - 1); }',
+			message: messages.rejected('margin-inline', 'calc(3 - 1)', []),
+			line: 1,
+			column: 36,
+			endLine: 1,
+			endColumn: 47,
+			description: 'multiple values in a declaration',
+		},
+		{
+			code: 'a { --foo: red; top: var(--foo); left: var(--foo); }',
+			warnings: [
+				{
+					message: messages.rejected('top', 'red', ['var(--foo)']),
+					line: 1,
+					column: 22,
+					endLine: 1,
+					endColumn: 32,
+				},
+				{
+					message: messages.rejected('left', 'red', ['var(--foo)']),
+					line: 1,
+					column: 40,
+					endLine: 1,
+					endColumn: 50,
+				},
+			],
+		},
+		{
+			code: 'a { --foo: red; --foo: blue; top: var(--foo); }',
+			message: messages.rejected('top', 'blue', ['var(--foo)']),
+			line: 1,
+			column: 35,
+			endLine: 1,
+			endColumn: 45,
+			description: 'the last declared value of the custom property is reported',
+		},
+		{
+			code: 'a { --foo: var(--bar); --bar: red; top: var(--foo); }',
+			message: messages.rejected('top', 'red', ['var(--foo)']),
+			line: 1,
+			column: 41,
+			endLine: 1,
+			endColumn: 51,
+			description: 'var() within the value of the custom property',
+		},
+		{
+			code: 'a { --foo: 1px; --bar: 0; color: rgb(var(--foo) var(--bar) 0); }',
+			message: messages.rejected('color', 'rgb(1px 0 0)', ['var(--foo)', 'var(--bar)']),
+			line: 1,
+			column: 34,
+			endLine: 1,
+			endColumn: 62,
+			description: 'var()s within a function',
+		},
+		{
+			code: 'a { --foo: 2; top: calc(var(--foo) * 2); }',
+			message: messages.rejected('top', 'calc(2 * 2)', ['var(--foo)']),
+			line: 1,
+			column: 20,
+			endLine: 1,
+			endColumn: 40,
+			description: 'var() within a math function',
+		},
+		{
+			code: 'a { --foo: 0; top: var(--foo) red; }',
+			message: messages.rejected('top', 'red', []),
+			line: 1,
+			column: 31,
+			endLine: 1,
+			endColumn: 34,
+			description: 'unknown value beside a var()',
+		},
+		{
+			code: 'a { --foo: 1px 2px; top: var(--foo); }',
+			message: messages.rejected('top', '1px 2px', ['var(--foo)']),
+			line: 1,
+			column: 26,
+			endLine: 1,
+			endColumn: 36,
+			description: 'custom property with more components than the property takes',
+		},
+		{
+			code: 'a { --foo: 1; top: var(--foo)px; }',
+			message: messages.rejected('top', '1', ['var(--foo)']),
+			line: 1,
+			column: 20,
+			endLine: 1,
+			endColumn: 30,
+			description: 'substituted value does not merge with the adjacent unit',
+		},
+		{
+			code: 'a { --foo: red; top: VAR(--foo); }',
+			message: messages.rejected('top', 'red', ['VAR(--foo)']),
+			line: 1,
+			column: 22,
+			endLine: 1,
+			endColumn: 32,
+		},
+		{
+			code: 'a { --foo: red; top: var(--foo, 0); }',
+			message: messages.rejected('top', 'red', ['var(--foo, 0)']),
+			line: 1,
+			column: 22,
+			endLine: 1,
+			endColumn: 35,
+			description: 'the fallback is ignored when the custom property is known',
+		},
+		{
+			code: stripIndent`
+				@property --foo { syntax: "<color>"; inherits: false; initial-value: red; }
+				a { top: var(--foo); }
+			`,
+			message: messages.rejected('top', 'red', ['var(--foo)']),
+			line: 2,
+			column: 10,
+			endLine: 2,
+			endColumn: 20,
+			description: 'initial value of a custom property defined using @property',
+		},
+		{
+			code: stripIndent`
+				@property --foo { syntax: "<color>"; inherits: false; initial-value: red; }
+				a { --bar: 1px; --foo: var(--bar); }
+			`,
+			message: messages.rejected('--foo', '1px', ['var(--bar)'], '<color>'),
+			line: 2,
+			column: 24,
+			endLine: 2,
+			endColumn: 34,
+			description: 'custom property defined using @property with a var()',
+		},
+		{
+			code: stripIndent`
+				@property --foo { syntax: "<color>"; inherits: false; initial-value: red; }
+				a { --foo: 1px; top: var(--foo); }
+			`,
+			warnings: [
+				{
+					message: messages.rejected('--foo', '1px', [], '<color>'),
+					line: 2,
+					column: 12,
+					endLine: 2,
+					endColumn: 15,
+				},
+				{
+					message: messages.rejected('top', 'red', ['var(--foo)']),
+					line: 2,
+					column: 22,
+					endLine: 2,
+					endColumn: 32,
+				},
+			],
+			description:
+				'custom property defined using @property with a value that mismatches its syntax',
+		},
+		{
+			code: stripIndent`
+				@property --foo { syntax: "<color>"; inherits: false; initial-value: red; }
+				a { --foo: ; top: var(--foo); }
+			`,
+			warnings: [
+				{
+					message: messages.rejected('--foo', '', [], '<color>'),
+					line: 2,
+					column: 12,
+					endLine: 2,
+					endColumn: 13,
+				},
+				{
+					message: messages.rejected('top', 'red', ['var(--foo)']),
+					line: 2,
+					column: 19,
+					endLine: 2,
+					endColumn: 29,
+				},
+			],
+			description: 'custom property defined using @property with an empty value',
+		},
+		{
+			code: stripIndent`
+				@property --foo { syntax: "<color>"; }
+				a { top: var(--foo); }
+			`,
+			message: messages.rejected('top', '<color>', ['var(--foo)']),
+			line: 2,
+			column: 10,
+			endLine: 2,
+			endColumn: 20,
+			description: 'no initial value',
+		},
+		{
+			code: stripIndent`
+				@property --foo { syntax: "<color>"; }
+				a { --foo: 1px; top: var(--foo); }
+			`,
+			warnings: [
+				{
+					message: messages.rejected('--foo', '1px', [], '<color>'),
+					line: 2,
+					column: 12,
+					endLine: 2,
+					endColumn: 15,
+				},
+				{
+					message: messages.rejected('top', '<color>', ['var(--foo)']),
+					line: 2,
+					column: 22,
+					endLine: 2,
+					endColumn: 32,
+				},
+			],
+			description: 'no initial value and a value that mismatches the syntax',
+		},
+		{
+			code: stripIndent`
+				@property --foo { syntax: "<color> | <length>"; }
+				a { --foo: red; top: var(--foo); }
+			`,
+			message: messages.rejected('top', 'red', ['var(--foo)']),
+			line: 2,
+			column: 22,
+			endLine: 2,
+			endColumn: 32,
+			description: 'no initial value and a value that matches an alternative of the syntax',
+		},
+		{
+			code: stripIndent`
+				@property --foo { syntax: "<color> | <image>"; }
+				a { top: var(--foo); }
+			`,
+			message: messages.rejected('top', '<color> | <image>', ['var(--foo)']),
+			line: 2,
+			column: 10,
+			endLine: 2,
+			endColumn: 20,
+			description: 'syntax with alternatives',
+		},
+		{
+			code: stripIndent`
+				@property --foo { syntax: "<color>+"; }
+				a { top: var(--foo); }
+			`,
+			message: messages.rejected('top', '<color>+', ['var(--foo)']),
+			line: 2,
+			column: 10,
+			endLine: 2,
+			endColumn: 20,
+			description: 'syntax with a multiplier',
+		},
+		{
+			code: stripIndent`
+				@property --foo { syntax: "auto"; }
+				a { color: var(--foo); }
+			`,
+			message: messages.rejected('color', 'auto', ['var(--foo)']),
+			line: 2,
+			column: 12,
+			endLine: 2,
+			endColumn: 22,
+			description: 'syntax with a keyword',
+		},
+		{
+			code: stripIndent`
+				@property --foo { syntax: "<length>"; }
+				@property --bar { syntax: "<color>"; }
+				a { --bar: var(--foo); }
+			`,
+			message: messages.rejected('--bar', '<length>', ['var(--foo)'], '<color>'),
+			line: 3,
+			column: 12,
+			endLine: 3,
+			endColumn: 22,
+			description: 'custom property defined using @property with a var() of another',
+		},
+		{
+			code: stripIndent`
+				@property --foo, --bar { syntax: "<color>"; }
+				a { --bar: 1px; }
+			`,
+			message: messages.rejected('--bar', '1px', [], '<color>'),
+			line: 2,
+			column: 12,
+			endLine: 2,
+			endColumn: 15,
+			description: 'custom property defined using @property with a list of names',
+		},
+	],
+});
+
+testRule({
+	ruleName,
+	config: [
+		true,
+		{
+			ignoreProperties: {
+				top: '/.+/',
+				padding: ['auto'],
+				'/.+/': /--foo/,
+			},
+		},
+	],
+
+	accept: [
+		{
+			code: 'a { top: 0; }',
+		},
+		{
+			code: 'a { top: red; }',
+		},
+		{
+			code: 'a { padding: auto; }',
+		},
+		{
+			code: 'a { margin: 10px --foo; }',
+		},
+		{
+			code: 'a { --bar: auto; padding: var(--bar); }',
+			description: 'substituted value is ignored',
+		},
+	],
+
+	reject: [
+		{
+			code: 'a { color: 1; }',
+			message: messages.rejected('color', '1', []),
+			line: 1,
+			column: 12,
+			endLine: 1,
+			endColumn: 13,
+		},
+		{
+			code: 'a { padding-left: auto; }',
+			message: messages.rejected('padding-left', 'auto', []),
+			line: 1,
+			column: 19,
+			endLine: 1,
+			endColumn: 23,
+		},
+		{
+			code: 'a { padding: 10px --bar; }',
+			message: messages.rejected('padding', '--bar', []),
+			line: 1,
+			column: 19,
+			endLine: 1,
+			endColumn: 24,
+		},
+	],
+});
+
+testRule({
+	ruleName,
+	config: true,
+	customSyntax: 'postcss-scss',
+
+	accept: [
+		{
+			code: 'a { $foo: bar; }',
+		},
+		{
+			code: 'a { top: #{foo}; }',
+		},
+		{
+			// https://github.com/stylelint/stylelint/issues/7403
+			code: stripIndent`
+				a {
+					top: #{
+						foo
+					};
+				}
+			`,
+		},
+	],
+});
+
+testRule({
+	ruleName,
+	config: true,
+	languageOptions: {
+		syntax: {
+			properties: { top: '| <--foo()>' },
+			types: { '--foo()': '--foo( <length-percentage> )' },
+		},
+	},
+
+	accept: [
+		{
+			code: 'a { top: 10px; }',
+		},
+		{
+			code: 'a { top: --foo(5px); }',
+		},
+	],
+
+	reject: [
+		{
+			code: 'a { top: unknown; }',
+			message: messages.rejected('top', 'unknown', []),
+			line: 1,
+			column: 10,
+			endLine: 1,
+			endColumn: 17,
+		},
+	],
+});
+
+testRule({
+	ruleName,
+	config: true,
+	languageOptions: {
+		syntax: {},
+	},
+
+	accept: [
+		{
+			code: 'a { top: 0; }',
+			description: 'languageOptions with empty syntax object',
+		},
+	],
+
+	reject: [
+		{
+			code: 'a { top: unknown; }',
+			message: messages.rejected('top', 'unknown', []),
+			line: 1,
+			column: 10,
+			endLine: 1,
+			endColumn: 17,
+			description: 'languageOptions with empty syntax object - rejects unknown value',
+		},
+	],
+});
+
+testRule({
+	ruleName,
+	config: true,
+	languageOptions: {
+		syntax: {
+			units: { length: ['--foo'] },
+		},
+	},
+
+	accept: [
+		{
+			code: 'a { top: 10--foo; }',
+		},
+	],
+
+	reject: [
+		{
+			code: 'a { top: 10--bar; }',
+			message: messages.rejected('top', '10--bar', []),
+			line: 1,
+			column: 10,
+			endLine: 1,
+			endColumn: 17,
+		},
+	],
+});
+
+testRuleConfigs({
+	ruleName,
+
+	reject: [
+		{
+			config: [true, { ignoreProperties: 'invalid' }],
+			description: 'invalid ignoreProperties option type',
+		},
+	],
+});

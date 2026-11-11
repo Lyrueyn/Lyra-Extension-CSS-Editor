@@ -1,0 +1,100 @@
+# color-no-hex
+
+Disallow hex colors.
+
+<!-- prettier-ignore -->
+```css
+a { color: #333 }
+/**        ↑
+ * This hex color */
+```
+
+Use this rule to enforce a convention. For example, disallow hex colors in favor of `oklch()`, whose channels you can read and compare.
+
+This rule supports 1 [message argument](../../../docs/user-guide/configure.md#message): the disallowed hex color.
+
+## Options
+
+### `true`
+
+```json
+{
+  "color-no-hex": true
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { color: #000; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: #fff1aa; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: #123456aa; }
+```
+
+Hex values that are not valid also cause problems:
+
+<!-- prettier-ignore -->
+```css
+a { color: #foobar; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: #0000000000000000; }
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { color: black; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: rgb(0, 0, 0); }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: rgba(0, 0, 0, 1); }
+```
+
+## Optional secondary options
+
+### `ignoreFunctions`
+
+```json
+{ "ignoreFunctions": ["array", "of", "functions", "/regex/"] }
+```
+
+Ignore hex colors within the specified functions.
+
+Given:
+
+```json
+{
+  "color-no-hex": [true, { "ignoreFunctions": ["var", "/^--/"] }]
+}
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { color: var(--foo, #fff); }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: --foo(#fff); }
+```

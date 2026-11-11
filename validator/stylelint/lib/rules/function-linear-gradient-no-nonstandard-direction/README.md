@@ -1,0 +1,90 @@
+# function-linear-gradient-no-nonstandard-direction
+
+Disallow non-standard direction values for linear gradient functions.
+
+<!-- prettier-ignore -->
+```css
+.foo { background: linear-gradient(to top, #fff, #000); }
+/**                                ↑
+ * This (optional) first argument is the "direction" */
+```
+
+Use this rule to avoid declarations that browsers ignore. A direction without `to`, e.g. `linear-gradient(top, red, blue)`, [invalidates the whole declaration](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/gradient/linear-gradient#side-or-corner).
+
+A valid and standard direction value is one of the following:
+
+- an angle
+- `to` plus a side-or-corner (`to top`, `to bottom`, `to left`, `to right`; `to top right`, `to right top`, `to bottom left`, etc.)
+
+> [!NOTE]
+> We recommend only using this rule for CSS-like languages, such as SCSS and Less. For CSS, we recommend using these more capable and overlapping rules instead:
+>
+> - [`at-rule-descriptor-value-no-unknown`](../at-rule-descriptor-value-no-unknown/README.md)
+> - [`declaration-property-value-no-unknown`](../declaration-property-value-no-unknown/README.md)
+
+This rule doesn't have any [message arguments](../../../docs/user-guide/configure.md#message).
+
+## Options
+
+### `true`
+
+```json
+{
+  "function-linear-gradient-no-nonstandard-direction": true
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+.foo { background: linear-gradient(top, #fff, #000); }
+```
+
+<!-- prettier-ignore -->
+```css
+.foo { background: linear-gradient(bottom, #fff, #000); }
+```
+
+<!-- prettier-ignore -->
+```css
+.foo { background: linear-gradient(left, #fff, #000); }
+```
+
+<!-- prettier-ignore -->
+```css
+.foo { background: linear-gradient(45, #fff, #000); }
+```
+
+<!-- prettier-ignore -->
+```css
+.foo { background: linear-gradient(to top top, #fff, #000); }
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+.foo { background: linear-gradient(to top, #fff, #000); }
+```
+
+<!-- prettier-ignore -->
+```css
+.foo { background: linear-gradient(to bottom right, #fff, #000); }
+```
+
+<!-- prettier-ignore -->
+```css
+.foo { background: linear-gradient(45deg, #fff, #000); }
+```
+
+<!-- prettier-ignore -->
+```css
+.foo { background: linear-gradient(1.57rad, #fff, #000); }
+```
+
+<!-- prettier-ignore -->
+```css
+/* Direction defaults to "to bottom" */
+.foo { background: linear-gradient(#fff, #000); }
+```

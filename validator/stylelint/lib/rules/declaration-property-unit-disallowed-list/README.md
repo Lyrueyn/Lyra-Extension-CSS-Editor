@@ -1,0 +1,87 @@
+# declaration-property-unit-disallowed-list
+
+Specify a list of disallowed property and unit pairs within declarations.
+
+<!-- prettier-ignore -->
+```css
+a { width: 100px; }
+/** ↑         ↑
+ * These properties and these units */
+```
+
+Use this rule to enforce a convention. For example, disallow:
+
+- `px` for `font-size`, so that text scales with your users' settings
+- `s` for `/^(transition|animation)/`, so that every duration is in `ms`
+
+This rule supports 2 [message arguments](../../../docs/user-guide/configure.md#message): the property name and the disallowed unit.
+
+## Options
+
+### `Object<string, Array<string>>`
+
+```json
+{ "property-name": ["array", "of", "units"] }
+```
+
+You can specify a regex for a property name, such as `{ "/^animation/": [] }`.
+
+Given:
+
+```json
+{
+  "declaration-property-unit-disallowed-list": {
+    "font-size": ["em", "px"],
+    "/^(-webkit-)?animation/": ["s"]
+  }
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { font-size: 1em; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { animation: animation-name 5s ease; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { -webkit-animation: animation-name 5s ease; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { animation-duration: 5s; }
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { font-size: 1.2rem; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { height: 100px; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { animation: animation-name 500ms ease; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { -webkit-animation: animation-name 500ms ease; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { animation-duration: 500ms; }
+```

@@ -1,0 +1,95 @@
+# property-disallowed-list
+
+Specify a list of disallowed properties.
+
+<!-- prettier-ignore -->
+```css
+a { text-rendering: optimizeLegibility; }
+/** ↑
+ * This property */
+```
+
+Use this rule to enforce a convention. For example, disallow:
+
+- `animation` if you use an animation library
+- `float` in favor of flex and grid
+
+This rule ignores preprocessor variables (e.g. `$sass`, `@less`).
+
+This rule supports 1 [message argument](../../../docs/user-guide/configure.md#message): the disallowed property.
+
+## Options
+
+### `Array<string>`
+
+```json
+["array", "of", "properties", "/regex/"]
+```
+
+Given:
+
+```json
+{
+  "property-disallowed-list": [
+    "text-rendering",
+    "/^(-webkit-)?animation/",
+    "/^background/",
+    "--foo"
+  ]
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { text-rendering: optimizeLegibility; }
+```
+
+<!-- prettier-ignore -->
+```css
+a {
+  animation: my-animation 2s;
+}
+```
+
+<!-- prettier-ignore -->
+```css
+a {
+  --foo: red;
+}
+```
+
+<!-- prettier-ignore -->
+```css
+a { -webkit-animation: my-animation 2s; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { background: red; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { background-size: cover; }
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { color: red; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { no-background: sure; }
+```
+
+<!-- prettier-ignore -->
+```css
+a {
+  --bar: red;
+}
+```

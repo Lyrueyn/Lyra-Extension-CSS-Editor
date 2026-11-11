@@ -1,0 +1,36 @@
+# no-empty-source
+
+Disallow empty sources.
+
+<!-- prettier-ignore -->
+```css
+
+```
+
+Use this rule to avoid leftovers from edits. An empty source does nothing.
+
+A source containing only whitespace, e.g., spaces, tabs, or newlines, is considered empty.
+
+This rule doesn't have any [message arguments](../../../docs/user-guide/configure.md#message).
+
+## Options
+
+### `true`
+
+```json
+{
+  "no-empty-source": true
+}
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+a {}
+```
+
+<!-- prettier-ignore -->
+```css
+/* Only comments */
+```

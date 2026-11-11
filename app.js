@@ -7,7 +7,7 @@
   const pathParam = params.get("projectEntry") || params.get("path") || "";
   const host = window.chrome && window.chrome.webview;
   const shellPending = new Map();
-  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 52 };
+  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 52, lintSeq: 0 };
   const THEMES = new Set(["lyra", "violet", "emerald", "sunset", "sakura", "light"]);
   let cm = null;
 
@@ -156,7 +156,7 @@
     if (/^\s*\/\*.*\*\/\s*$/.test(body)) cm.replaceRange(body.replace(/^\s*\/\*\s?/, "").replace(/\s?\*\/\s*$/, ""), { line: cursor.line, ch: indent.length }, { line: cursor.line, ch: line.length });
     else cm.replaceRange("/* " + body + " */", { line: cursor.line, ch: indent.length }, { line: cursor.line, ch: line.length });
   }
-  function collectCssIssues() {
+  function collectLocalCssIssues(includeSemantic) {
     const text = cm.getValue();
     const lines = text.split("\n");
     const stack = [];
@@ -183,8 +183,9 @@
     for (const item of stack) issues.push({ line: item.line, chPos: item.chPos, message: "括号未闭合：" + item.ch, source: "结构" });
     if (quote) issues.push({ line: quote.line, chPos: quote.chPos, message: "引号未闭合：" + quote.ch, source: "结构" });
 
-    // 逐行做轻量语义检查：选择器、属性名、属性值。
+    // 逐行做轻量语义检查：选择器、属性名、属性值（stylelint 可用时跳过）。
     let depth = 0;
+    if (includeSemantic) {
     for (let li = 0; li < lines.length; li += 1) {
       const raw = lines[li];
       const code = raw.replace(/\/\*.*?\*\//g, " ").trim();
@@ -212,6 +213,7 @@
       const closes = (clean.match(/\}/g) || []).length;
       depth = Math.max(0, depth + opens - closes);
     }
+    }
     const seen = new Set();
     const out = [];
     for (const it of issues) {
@@ -221,12 +223,35 @@
     }
     return out.sort((a, b) => a.line - b.line || a.chPos - b.chPos).slice(0, 100);
   }
-  function renderProblems(issues) {
+  async function fetchStylelint(code) {
+    try {
+      const res = await callHost("editor.validate-css", { code: code });
+      if (!res || res.ok === false) throw new Error((res && res.error) || "stylelint 宿主调用失败");
+      const raw = typeof res.json === "string" ? res.json : res.json;
+      const data = typeof raw === "string" ? JSON.parse(raw) : raw;
+      if (!data || data.ok === false) throw new Error((data && data.error) || "stylelint 返回错误");
+      const warnings = Array.isArray(data.warnings) ? data.warnings : [];
+      return {
+        error: "",
+        issues: warnings.map((w) => ({
+          line: Math.max(0, (Number(w.line) || 1) - 1),
+          chPos: Math.max(0, (Number(w.column) || 1) - 1),
+          message: String(w.text || w.rule || "stylelint"),
+          source: w.rule ? "stylelint:" + w.rule : "stylelint",
+          severity: w.severity || "error",
+        })),
+      };
+    } catch (e) {
+      return { error: e && e.message ? e.message : String(e), issues: [] };
+    }
+  }
+
+  function renderProblems(issues, note) {
     const panel = $("problemsPanel");
     if (!panel) return;
     panel.hidden = false;
     $("problemCount").textContent = String(issues.length);
-    $("problemSummary").textContent = issues.length ? ("在 1 个文件中发现 " + issues.length + " 个问题") : "未检测到问题";
+    $("problemSummary").textContent = issues.length ? ("在 1 个文件中发现 " + issues.length + " 个问题" + (note ? " · " + note : "")) : (note || "未检测到问题");
     const list = $("problemsList");
     list.innerHTML = "";
     if (!issues.length) {
@@ -253,14 +278,26 @@
     }
   }
 
-  function refreshLint() {
+  async function refreshLint() {
     if (!cm) return;
+    const token = ++state.lintSeq;
     for (const mark of state.errorMarks) { try { mark.clear(); } catch { } }
     state.errorMarks = [];
     for (const line of state.errorLines) { try { cm.removeLineClass(line, "background", "cm-css-error-line"); } catch { } }
     state.errorLines = [];
     try { cm.clearGutter("css-errors"); } catch { }
-    const issues = collectCssIssues();
+    const code = cm.getValue();
+    const lint = await fetchStylelint(code);
+    if (token !== state.lintSeq) return;
+    const useStylelint = !lint.error;
+    const local = collectLocalCssIssues(!useStylelint);
+    let issues = useStylelint ? lint.issues.concat(local) : local;
+    const seen = new Set();
+    issues = issues.filter((it) => {
+      const key = it.line + ":" + it.chPos + ":" + it.message;
+      if (seen.has(key)) return false;
+      seen.add(key); return true;
+    }).sort((a, b) => a.line - b.line || a.chPos - b.chPos).slice(0, 200);
     const markedLines = new Set();
     for (const issue of issues) {
       const line = Math.max(0, Math.min(issue.line, cm.lineCount() - 1));
@@ -282,7 +319,8 @@
         cm.setGutterMarker(line, "css-errors", gutter);
       }
     }
-    renderProblems(issues);
+    const note = useStylelint ? "" : "stylelint 不可用，使用基础检查";
+    renderProblems(issues, note);
     setStatus(issues.length ? issues.length + " 个问题" : "就绪", false);
   }
 
@@ -315,7 +353,7 @@
         "Ctrl-G": () => { const n = prompt("跳转到行"); if (n) cm.setCursor({ line: Math.max(0, parseInt(n, 10) - 1), ch: 0 }); },
       },
     });
-    cm.on("change", () => { markDirty(); scheduleAutoSave(); clearTimeout(state.statusTimer); state.statusTimer = setTimeout(refreshLint, 350); updatePreview(); });
+    cm.on("change", () => { markDirty(); scheduleAutoSave(); clearTimeout(state.statusTimer); state.statusTimer = setTimeout(refreshLint, 600); updatePreview(); });
     cm.setSize("100%", "100%");
     try {
       const savedSplit = parseFloat(localStorage.getItem("lyra.css.split") || "");

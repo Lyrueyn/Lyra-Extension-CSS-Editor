@@ -1,7 +1,7 @@
 {
   "id": "css-editor",
   "name": "CSS 编辑器",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "entry": "index.html",
   "description": "CSS 源码编辑器：高亮、补全、括号匹配、折叠、注释、格式化、实时预览；可由编辑器外壳加载。",
   "kind": "editor-plugin",

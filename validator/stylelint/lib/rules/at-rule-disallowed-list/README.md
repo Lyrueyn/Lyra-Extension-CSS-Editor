@@ -1,0 +1,65 @@
+# at-rule-disallowed-list
+
+Specify a list of disallowed at-rules.
+
+<!-- prettier-ignore -->
+```css
+    @keyframes name {}
+/** ↑
+ * At-rules like this */
+```
+
+Use this rule to enforce a convention. For example, disallow:
+
+- `import` if you use a bundler
+- `keyframes` if you use an animation library
+
+This rule ignores the `@charset` rule.
+
+This rule supports 1 [message argument](../../../docs/user-guide/configure.md#message): the disallowed at-rule.
+
+## Options
+
+### `Array<string>`
+
+```json
+["array", "of", "at-rules", "/regex/"]
+```
+
+Given:
+
+```json
+{
+  "at-rule-disallowed-list": ["extend", "/^(-webkit-|-moz-)?keyframes$/i"]
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { @extend placeholder; }
+```
+
+<!-- prettier-ignore -->
+```css
+@keyframes name {
+  from { top: 10px; }
+  to { top: 20px; }
+}
+```
+
+<!-- prettier-ignore -->
+```css
+@-moz-keyframes name {
+  from { top: 10px; }
+  to { top: 20px; }
+}
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+@import "path/to/file.css";
+```

@@ -1,0 +1,65 @@
+# no-unknown-custom-properties
+
+Disallow unknown custom properties.
+
+<!-- prettier-ignore -->
+```css
+a { color: var(--foo); }
+/**            ↑
+ *             This custom property */
+
+a { color: var(--foo, var(--bar)); }
+/**                       ↑
+ *                        And this one */
+```
+
+Use this rule to avoid custom properties in `var()` that match no definition. Browsers [reset the property to its initial or inherited value](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Syntax/Error_handling#invalid_custom_properties) when there is no fallback.
+
+This rule considers custom properties defined within the same source or within the files specified in the [`referenceFiles`](../../../docs/user-guide/configure.md#referencefiles) configuration property to be known.
+
+This rule supports 1 [message argument](../../../docs/user-guide/configure.md#message): the unknown custom property.
+
+## Options
+
+### `true`
+
+```json
+{
+  "no-unknown-custom-properties": true
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { color: var(--foo); }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: var(--foo, var(--bar)); }
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { --foo: #f00; color: var(--foo); }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: var(--foo, #f00); }
+```
+
+<!-- prettier-ignore -->
+```css
+a { --foo: #f00; color: var(--bar, var(--foo)); }
+```
+
+<!-- prettier-ignore -->
+```css
+@property --foo { syntax: "<color>"; inherits: false; initial-value: #f00; }
+a { color: var(--foo); }
+```

@@ -1,0 +1,86 @@
+# no-unknown-animations
+
+Disallow unknown animations.
+
+<!-- prettier-ignore -->
+```css
+a { animation-name: fancy-slide; }
+/**                    ↑
+ *   This animation name */
+
+a { animation: fancy-slide 2s linear; }
+/**                    ↑
+ *           And this one */
+```
+
+Use this rule to avoid animation names that match no `@keyframes` rule. Browsers [don't run the animation](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/animation-name).
+
+This rule considers the identifiers of `@keyframes` rules defined within the same source or within the files specified in the [`referenceFiles`](../../../docs/user-guide/configure.md#referencefiles) configuration property to be known.
+
+This rule supports 1 [message argument](../../../docs/user-guide/configure.md#message): the unknown animation name.
+
+## Options
+
+### `true`
+
+```json
+{
+  "no-unknown-animations": true
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { animation-name: fancy-slide; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { animation: fancy-slide 2s linear; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { animation-name: fancccy-slide; }
+@keyframes fancy-slide {}
+```
+
+<!-- prettier-ignore -->
+```css
+a { animation: linear 100ms fancccy-slide; }
+@keyframes fancy-slide {}
+```
+
+<!-- prettier-ignore -->
+```css
+a { animation-name: jump; }
+@keyframes fancy-slide {}
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { animation-name: fancy-slide; }
+@keyframes fancy-slide {}
+```
+
+<!-- prettier-ignore -->
+```css
+@keyframes fancy-slide {}
+a { animation-name: fancy-slide; }
+```
+
+<!-- prettier-ignore -->
+```css
+@keyframes fancy-slide {}
+a { animation: fancy-slide 2s linear; }
+```
+
+<!-- prettier-ignore -->
+```css
+a { animation: 100ms steps(12, end) fancy-slide; }
+@keyframes fancy-slide {}
+```

@@ -1,0 +1,91 @@
+# hue-degree-notation
+
+Specify number or angle notation for degree hues.
+
+<!-- prettier-ignore -->
+```css
+    a { color: hsl(198deg 28% 50%) }
+/**                ↑
+ *                 This notation */
+```
+
+Use this rule to enforce a convention. A [hue](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/hue) can be an angle or a number, which is interpreted as degrees.
+
+Choose:
+
+- `"angle"` for clarity
+- `"number"` for brevity
+
+The [`fix` option](../../../docs/user-guide/options.md#fix) can automatically fix all of the problems reported by this rule.
+
+This rule supports 2 [message arguments](../../../docs/user-guide/configure.md#message): the hue and its expected notation.
+
+## Options
+
+### `"angle"`
+
+Degree hues _must always_ use angle notation.
+
+```json
+{
+  "hue-degree-notation": "angle"
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { color: hsl(198 28% 50%) }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: lch(56.29% 19.86 10 / 15%) }
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { color: hsl(198deg 28% 50%) }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: lch(56.29% 19.86 10deg / 15%) }
+```
+
+### `"number"`
+
+Degree hues _must always_ use the number notation.
+
+```json
+{
+  "hue-degree-notation": "number"
+}
+```
+
+The following patterns are considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { color: hsl(198deg 28% 50%) }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: lch(56.29% 19.86 10deg / 15%) }
+```
+
+The following patterns are _not_ considered problems:
+
+<!-- prettier-ignore -->
+```css
+a { color: hsl(198 28% 50%) }
+```
+
+<!-- prettier-ignore -->
+```css
+a { color: lch(56.29% 19.86 10 / 15%) }
+```
