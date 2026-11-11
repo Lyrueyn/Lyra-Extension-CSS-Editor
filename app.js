@@ -7,7 +7,7 @@
   const pathParam = params.get("projectEntry") || params.get("path") || "";
   const host = window.chrome && window.chrome.webview;
   const shellPending = new Map();
-  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false };
+  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 52, problemManual: false };
   const THEMES = new Set(["lyra", "violet", "emerald", "sunset", "sakura", "light"]);
   let cm = null;
 
@@ -225,6 +225,7 @@
     const panel = $("problemsPanel");
     if (!panel) return;
     panel.hidden = false;
+    if (!state.problemManual) panel.classList.toggle("collapsed", issues.length === 0);
     $("problemCount").textContent = String(issues.length);
     $("problemSummary").textContent = issues.length ? ("在 1 个文件中发现 " + issues.length + " 个问题") : "未检测到问题";
     const list = $("problemsList");
@@ -290,6 +291,11 @@
     $("save").addEventListener("click", () => saveFile(false));
     $("format").addEventListener("click", () => { cm.setValue(formatCss(cm.getValue())); markDirty(); updatePreview(); setStatus("已格式化"); });
     $("theme").addEventListener("change", () => applyTheme($("theme").value));
+    $("previewRefresh").addEventListener("click", () => updatePreview());
+    $("problemToggle").addEventListener("click", () => {
+      state.problemManual = true;
+      $("problemsPanel").classList.toggle("collapsed");
+    });
     document.addEventListener("keydown", (event) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") { event.preventDefault(); clearTimeout(state.autoTimer); state.dirty = cm.getValue() !== state.lastSaved; saveFile(false); } });
     window.addEventListener("message", (event) => {
       const d = event.data || {};
@@ -316,6 +322,43 @@
     });
     cm.on("change", () => { markDirty(); scheduleAutoSave(); clearTimeout(state.statusTimer); state.statusTimer = setTimeout(refreshLint, 350); updatePreview(); });
     cm.setSize("100%", "100%");
+    try {
+      const savedSplit = parseFloat(localStorage.getItem("lyra.css.split") || "");
+      if (savedSplit >= 30 && savedSplit <= 78) state.split = savedSplit;
+    } catch { }
+    const applySplit = (n) => {
+      state.split = Math.max(30, Math.min(78, n));
+      document.documentElement.style.setProperty("--split", state.split + "%");
+      try { localStorage.setItem("lyra.css.split", String(state.split)); } catch { }
+    };
+    applySplit(state.split);
+    const splitter = $("splitter");
+    let dragging = false;
+    splitter.addEventListener("mousedown", (event) => {
+      dragging = true;
+      event.preventDefault();
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    });
+    window.addEventListener("mousemove", (event) => {
+      if (!dragging) return;
+      const main = $("main");
+      const r = main.getBoundingClientRect();
+      applySplit(((event.clientX - r.left) / r.width) * 100);
+    });
+    window.addEventListener("mouseup", () => {
+      if (!dragging) return;
+      dragging = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    });
+    const updateCursor = () => {
+      const pos = cm.getCursor();
+      const el = $("cursorPos");
+      if (el) el.textContent = "Ln " + (pos.line + 1) + ", Col " + (pos.ch + 1);
+    };
+    cm.on("cursorActivity", updateCursor);
+    updateCursor();
   }
   bind();
   try { applyTheme(localStorage.getItem("lyra.css.theme") || "lyra"); } catch { applyTheme("lyra"); }
