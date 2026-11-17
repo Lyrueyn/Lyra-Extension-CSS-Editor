@@ -7,7 +7,7 @@
   const pathParam = params.get("projectEntry") || params.get("path") || "";
   const host = window.chrome && window.chrome.webview;
   const shellPending = new Map();
-  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 38, lintSeq: 0, inspect: false, selected: null, selectedSelector: "", inspectBound: false, rule: null, colorWidgets: [], colorTarget: null, pickerColor: null, colorChipTimer: 0 };
+  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 38, lintSeq: 0, inspect: false, selected: null, selectedSelector: "", inspectBound: false, rule: null, colorChips: [], colorTarget: null, pickerColor: null, colorChipTimer: 0 };
   const THEMES = new Set(["lyra", "violet", "emerald", "sunset", "sakura", "light"]);
   let cm = null;
 
@@ -888,14 +888,32 @@
   }
   function colorCss(c) { return "rgba(" + c.r + "," + c.g + "," + c.b + "," + Number(c.a.toFixed(3)) + ")"; }
 
-  // ================= 颜色色块 =================
-  function clearColorWidgets() {
-    for (const w of state.colorWidgets) { try { w.clear(); } catch { } }
-    state.colorWidgets = [];
+  // ================= 颜色色块（绝对 overlay：按 charCoords 定位，不参与编辑流，绝不撑歪代码） =================
+  function clearColorChips() {
+    for (const c of state.colorChips) { try { c.node.remove(); } catch { } }
+    state.colorChips = [];
+  }
+  function placeColorChips() {
+    if (!cm) return;
+    const er = cm.getWrapperElement().getBoundingClientRect();
+    for (const item of state.colorChips) {
+      try {
+        const co = cm.charCoords(cm.posFromIndex(item.ctx.to), "window");
+        const h = Math.max(0, co.bottom - co.top);
+        const top = co.top + Math.max(0, (h - 11) / 2);
+        const left = co.left + 3;
+        // 只画在编辑器视口内：长行横向滚动时，token 可能已跑到编辑区外，不能盖到预览上
+        const visible = top > er.top + 2 && top < er.bottom - 14 && left > er.left + 2 && left < er.right - 14;
+        item.node.style.display = visible ? "block" : "none";
+        if (visible) { item.node.style.left = left.toFixed(1) + "px"; item.node.style.top = top.toFixed(1) + "px"; }
+      } catch { item.node.style.display = "none"; }
+    }
   }
   function rebuildColorChips() {
     if (!cm) return;
-    clearColorWidgets();
+    clearColorChips();
+    const overlay = $("colorOverlay");
+    if (!overlay) return;
     const text = cm.getValue();
     const re = /#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})\b|(?:rgb|hsl)a?\([^)]*\)/g;
     let m; let count = 0;
@@ -909,19 +927,20 @@
       if (/url\([^)]*$/i.test(beforeToken)) continue;
       const c = parseColor(m[0]);
       if (!c) continue;
-      const startIndex = m.index, endIndex = m.index + m[0].length, rawToken = m[0];
-      const from = cm.posFromIndex(startIndex), to = cm.posFromIndex(endIndex);
+      const ctx = { from: m.index, to: m.index + m[0].length, raw: m[0], color: c };
       const chip = document.createElement("span");
       chip.className = "lyra-color-chip";
-      chip.title = rawToken + " · 点击修改";
+      chip.title = m[0] + " · 点击修改";
       chip.style.background = colorCss(c);
       chip.addEventListener("mousedown", (event) => {
         event.preventDefault(); event.stopPropagation();
-        openColorPicker(chip, { from: startIndex, to: endIndex, raw: rawToken, color: c });
+        openColorPicker(chip, ctx, chip.getBoundingClientRect());
       });
-      const handle = cm.addWidget({ line: to.line, ch: to.ch }, chip, false);
-      state.colorWidgets.push(handle); count++;
+      overlay.appendChild(chip);
+      state.colorChips.push({ ctx, node: chip });
+      count++;
     }
+    placeColorChips();
   }
   function scheduleColorChips() {
     clearTimeout(state.colorChipTimer);
@@ -1005,6 +1024,7 @@
     $("save").addEventListener("click", () => saveFile(false));
     $("format").addEventListener("click", () => { cm.setValue(formatCss(cm.getValue())); markDirty(); updatePreview(); setStatus("已格式化"); });
     $("theme").addEventListener("change", () => applyTheme($("theme").value));
+
     $("cpNative").addEventListener("input", () => {
       const c = parseColor($("cpNative").value);
       if (c) { c.a = state.pickerColor ? state.pickerColor.a : 1; state.pickerColor = c; updatePickerPreview(); }
@@ -1040,6 +1060,7 @@
       $("devComputed").hidden = tab.dataset.dev !== "computed";
     }));
     document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !$("colorPopover").hidden) { closeColorPicker(); return; }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
         clearTimeout(state.autoTimer);
@@ -1164,6 +1185,8 @@
     updateCursor();
     setTimeout(syncCursorRule, 300);
     setTimeout(rebuildColorChips, 500);
+    cm.on("scroll", () => placeColorChips());
+    window.addEventListener("resize", () => { placeColorChips(); });
   }
   bind();
   try { applyTheme(localStorage.getItem("lyra.css.theme") || "lyra"); } catch { applyTheme("lyra"); }
