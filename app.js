@@ -7,7 +7,7 @@
   const pathParam = params.get("projectEntry") || params.get("path") || "";
   const host = window.chrome && window.chrome.webview;
   const shellPending = new Map();
-  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 38, lintSeq: 0, inspect: false, selected: null, selectedSelector: "", inspectBound: false, rule: null, matchCount: 0, colorTarget: null, pickerColor: null, colorChipTimer: 0, varsTimer: 0, varFilter: "" };
+  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 38, lintSeq: 0, inspect: false, selected: null, selectedSelector: "", inspectBound: false, rule: null, matchCount: 0, forced: {}, forcedEl: null, colorTarget: null, pickerColor: null, colorChipTimer: 0, varsTimer: 0, varFilter: "" };
   const THEMES = new Set(["lyra", "violet", "emerald", "sunset", "sakura", "light"]);
   let cm = null;
 
@@ -409,6 +409,7 @@
   }
   function selectInspectElement(el) {
     if (!el || el.nodeType !== 1) return;
+    clearForcedStates();
     clearPreviewHighlights();
     state.selected = el;
     state.selectedSelector = selectorFor(el);
@@ -444,6 +445,58 @@
     const props = ["display", "position", "width", "height", "margin", "padding", "border", "border-radius", "color", "background-color", "font-family", "font-size", "font-weight", "line-height", "text-align", "flex", "gap", "grid-template-columns", "opacity", "transform", "box-shadow", "transition", "z-index"];
     return props.map((p) => [p, cs.getPropertyValue(p)]);
   }
+  function buildForceCss(doc) {
+    const st = doc.getElementById("lyra-force-style") || (() => {
+      const el = doc.createElement("style"); el.id = "lyra-force-style"; (doc.head || doc.documentElement).appendChild(el); return el;
+    })();
+    let css = "";
+    const states = ["hover", "focus", "active", "disabled", "checked"];
+    const walk = (rules) => {
+      for (const rule of Array.from(rules || [])) {
+        try {
+          if (rule.type === CSSRule.STYLE_RULE) {
+            let sel = rule.selectorText || "";
+            let hit = false;
+            for (const stt of states) {
+              const re = new RegExp(":" + stt + "(?![-\\w])", "gi");
+              if (re.test(sel)) { sel = sel.replace(re, ".lyra-force-" + stt); hit = true; }
+            }
+            if (hit) css += sel + "{" + rule.style.cssText + "}\n";
+          } else if (rule.cssRules && rule.type !== CSSRule.KEYFRAMES_RULE) {
+            const before = css;
+            walk(rule.cssRules);
+            if (css !== before && rule.conditionText) {
+              const inner = css.slice(before.length);
+              css = before + "@media " + rule.conditionText + "{" + inner + "}\n";
+            }
+          }
+        } catch { }
+      }
+    };
+    for (const sheet of Array.from(doc.styleSheets || [])) {
+      if (sheet.ownerNode && (sheet.ownerNode.id === "lyra-base-style" || sheet.ownerNode.id === "lyra-inspect-style" || sheet.ownerNode.id === "lyra-force-style")) continue;
+      try { walk(sheet.cssRules); } catch { }
+    }
+    st.textContent = css;
+  }
+  function clearForcedStates() {
+    if (state.forcedEl) {
+      for (const name of Object.keys(state.forced)) state.forcedEl.classList.remove("lyra-force-" + name);
+    }
+    state.forced = {};
+    state.forcedEl = null;
+  }
+  function toggleForcedState(name, el) {
+    const doc = $("preview") && $("preview").contentDocument;
+    if (!doc || !el) return;
+    if (state.forcedEl && state.forcedEl !== el) clearForcedStates();
+    state.forcedEl = el;
+    buildForceCss(doc);
+    state.forced[name] = !state.forced[name];
+    el.classList.toggle("lyra-force-" + name, !!state.forced[name]);
+    renderInspector();
+  }
+
   function clearPreviewHighlights() {
     const doc = $("preview") && $("preview").contentDocument;
     if (!doc) return;
@@ -718,6 +771,17 @@
       badges.appendChild(b);
     }
     if (badges.childNodes.length) card.appendChild(badges);
+    const stateRow = document.createElement("div"); stateRow.className = "dev-state-row";
+    const stateHint = document.createElement("span"); stateHint.className = "dev-state-hint"; stateHint.textContent = "强制状态";
+    stateRow.appendChild(stateHint);
+    for (const name of ["hover", "focus", "active", "disabled"]) {
+      const b = document.createElement("button"); b.type = "button"; b.className = "dev-state-btn" + (state.forced[name] ? " active" : "");
+      b.textContent = ":" + name;
+      b.title = "强制 :" + name;
+      b.addEventListener("click", () => toggleForcedState(name, el));
+      stateRow.appendChild(b);
+    }
+    card.appendChild(stateRow);
     return card;
   }
   function renderBoxModel(el) {
@@ -824,6 +888,7 @@
       setTimeout(() => {
         const doc = frame.contentDocument;
         if (!doc) return;
+        state.forced = {}; state.forcedEl = null;
         if (state.inspect) setupPreviewDoc(doc);
         const rule = parseRuleAtCursor();
         if (rule) {
@@ -841,6 +906,7 @@
     state.inspect = typeof force === "boolean" ? force : !state.inspect;
     $("inspectBtn").classList.toggle("active", state.inspect);
     if (!state.inspect) {
+      clearForcedStates();
       clearPreviewHighlights();
       hideInspectTip($("preview").contentDocument);
       state.selected = null; state.selectedSelector = ""; state.matchCount = 0;

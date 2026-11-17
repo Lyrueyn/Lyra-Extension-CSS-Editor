@@ -227,3 +227,10 @@ html[data-theme="light"] .preview-actions .ghost.active{color:#fff}
 .bm-padding{border-color:#7fc98d;background:rgba(127,201,141,.08)}
 .bm-content{border:1px solid #66a9e8;background:rgba(102,169,232,.10);color:var(--text);padding:5px 4px;border-radius:3px}
 .bm-label{display:block;margin-bottom:3px;font-size:9px;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
+
+.dev-state-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:7px;padding-top:6px;border-top:1px solid var(--line)}
+.dev-state-hint{color:var(--muted);font:9.5px/1.4 system-ui;letter-spacing:.04em;margin-right:2px}
+.dev-state-btn{border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:4px;padding:1px 5px;font:10px/1.5 Consolas,monospace;cursor:pointer}
+.dev-state-btn:hover{color:var(--accent);border-color:var(--accent)}
+.dev-state-btn.active{background:var(--accent);border-color:var(--accent);color:#06121f;font-weight:600}
+html[data-theme="light"] .dev-state-btn.active{color:#fff}
