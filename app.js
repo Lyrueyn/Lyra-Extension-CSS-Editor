@@ -7,7 +7,7 @@
   const pathParam = params.get("projectEntry") || params.get("path") || "";
   const host = window.chrome && window.chrome.webview;
   const shellPending = new Map();
-  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 38, lintSeq: 0, inspect: false, selected: null, selectedSelector: "", inspectBound: false, rule: null, colorTarget: null, pickerColor: null, colorChipTimer: 0 };
+  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 38, lintSeq: 0, inspect: false, selected: null, selectedSelector: "", inspectBound: false, rule: null, matchCount: 0, colorTarget: null, pickerColor: null, colorChipTimer: 0, varsTimer: 0, varFilter: "" };
   const THEMES = new Set(["lyra", "violet", "emerald", "sunset", "sakura", "light"]);
   let cm = null;
 
@@ -367,7 +367,7 @@
   }
   function selectInspectElement(el) {
     if (!el || el.nodeType !== 1) return;
-    if (state.selected && state.selected.classList) state.selected.classList.remove("__lyra-selected");
+    clearPreviewHighlights();
     state.selected = el;
     state.selectedSelector = selectorFor(el);
     state.rule = null;
@@ -402,6 +402,113 @@
     const props = ["display", "position", "width", "height", "margin", "padding", "border", "border-radius", "color", "background-color", "font-family", "font-size", "font-weight", "line-height", "text-align", "flex", "gap", "grid-template-columns", "opacity", "transform", "box-shadow", "transition", "z-index"];
     return props.map((p) => [p, cs.getPropertyValue(p)]);
   }
+  function clearPreviewHighlights() {
+    const doc = $("preview") && $("preview").contentDocument;
+    if (!doc) return;
+    for (const el of Array.from(doc.querySelectorAll(".__lyra-selected"))) el.classList.remove("__lyra-selected");
+  }
+  function highlightSelector(selector) {
+    const doc = $("preview") && $("preview").contentDocument;
+    if (!doc) return [];
+    clearPreviewHighlights();
+    let els = [];
+    try { els = Array.from(doc.querySelectorAll(selector)); } catch { return []; }
+    for (const el of els) el.classList.add("__lyra-selected");
+    return els;
+  }
+
+  // ---------- CSS 变量面板 ----------
+  function findVarDefs() {
+    if (!cm) return [];
+    const text = cm.getValue();
+    const re = /(--[-\w]+)\s*:\s*([^;{}]*)/g;
+    const out = [];
+    let m;
+    while ((m = re.exec(text))) {
+      const value = m[2];
+      const valueStart = m.index + m[0].length - value.length;
+      out.push({ name: m[1], value: value.trim(), start: m.index, valueStart, valueEnd: m.index + m[0].length, line: cm.posFromIndex(m.index).line });
+    }
+    return out;
+  }
+  function scheduleVarsRender() {
+    clearTimeout(state.varsTimer);
+    state.varsTimer = setTimeout(() => { if (!$("devVars").hidden) renderVars(); }, 250);
+  }
+  function renderVars() {
+    if (!cm) return;
+    const host = $("devVars");
+    if (!host) return;
+    const defs = findVarDefs();
+    const text = cm.getValue();
+    const usage = new Map();
+    const reUse = /var\(\s*(--[-\w]+)/g;
+    let um;
+    while ((um = reUse.exec(text))) usage.set(um[1], (usage.get(um[1]) || 0) + 1);
+    const query = state.varFilter || "";
+    const shown = defs;
+    host.innerHTML = "";
+    const toolbar = document.createElement("div");
+    toolbar.className = "dev-vars-toolbar";
+    toolbar.innerHTML = '<input id="varFilter" placeholder="搜索变量…" spellcheck="false"><span id="varStat"></span>';
+    host.appendChild(toolbar);
+    $("varFilter").value = query;
+    $("varFilter").addEventListener("input", () => {
+      state.varFilter = $("varFilter").value.trim().toLowerCase();
+      applyVarsFilter();
+    });
+    function applyVarsFilter() {
+      let n = 0;
+      for (const row of Array.from(host.querySelectorAll(".dev-var-row"))) {
+        const hit = !state.varFilter || row.dataset.search.includes(state.varFilter);
+        row.hidden = !hit; if (hit) n++;
+      }
+      const stat = $("varStat"); if (stat) stat.textContent = n + " / " + defs.length + " 个变量";
+    }
+    if (!defs.length) { const empty = document.createElement("div"); empty.className = "dev-empty"; empty.textContent = "还没有 CSS 变量。在 :root { --name: value; } 里定义。"; host.appendChild(empty); }
+    for (const def of shown) {
+      const row = document.createElement("div"); row.className = "dev-var-row"; row.dataset.search = (def.name + " " + def.value).toLowerCase();
+      const sw = document.createElement("span"); sw.className = "dev-var-swatch";
+      const c = parseColor(def.value);
+      if (c) { sw.style.background = colorCss(c); sw.title = def.value + " · 点击修改"; sw.addEventListener("mousedown", (event) => { event.preventDefault(); event.stopPropagation(); const co = sw.getBoundingClientRect(); openColorPicker(sw, { from: def.valueStart, to: def.valueEnd, raw: def.value, color: c }, co); }); }
+      else { sw.style.visibility = "hidden"; }
+      row.appendChild(sw);
+      const main = document.createElement("div"); main.className = "dev-var-main";
+      const name = document.createElement("span"); name.className = "dev-var-name"; name.textContent = def.name;
+      name.title = "跳到定义";
+      name.addEventListener("click", () => { const pos = cm.posFromIndex(def.start); cm.setCursor(pos); cm.scrollIntoView(pos, 80); cm.focus(); });
+      const val = document.createElement("input"); val.className = "dev-var-value"; val.value = def.value; val.spellcheck = false;
+      val.addEventListener("change", () => {
+        const v = val.value.trim();
+        cm.replaceRange(v, cm.posFromIndex(def.valueStart), cm.posFromIndex(def.valueEnd));
+        markDirty(); scheduleAutoSave(); updatePreview(); scheduleVarsRender();
+      });
+      main.appendChild(name); main.appendChild(val); row.appendChild(main);
+      const count = document.createElement("span"); count.className = "dev-var-count"; count.textContent = (usage.get(def.name) || 0) + "×"; count.title = "被 var() 引用次数";
+      row.appendChild(count);
+      host.appendChild(row);
+    }
+    const add = document.createElement("div"); add.className = "dev-var-new";
+    add.innerHTML = '<input placeholder="--new-var" spellcheck="false"><input placeholder="值" spellcheck="false"><button type="button">+ 新建</button>';
+    const [ni, vi] = add.querySelectorAll("input");
+    add.querySelector("button").addEventListener("click", () => {
+      let nm = ni.value.trim(); if (!nm) return;
+      if (!nm.startsWith("--")) nm = "--" + nm.replace(/^-+/, "");
+      const value = vi.value.trim() || "0";
+      const span = cssRuleSpan(":root");
+      if (span) {
+        const closePos = cm.posFromIndex(span.close);
+        cm.replaceRange("\n  " + nm + ": " + value + ";", closePos, closePos);
+      } else {
+        cm.replaceRange(":root {\n  " + nm + ": " + value + ";\n}\n\n", CodeMirror.Pos(0, 0));
+      }
+      markDirty(); scheduleAutoSave(); updatePreview();
+      setTimeout(renderVars, 120);
+    });
+    host.appendChild(add);
+    applyVarsFilter();
+  }
+
   function cssRuleSpan(selector) {
     const text = cm.getValue();
     const re = new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{", "g");
@@ -474,10 +581,9 @@
     if (!rule) return;
     state.rule = rule;
     state.selectedSelector = rule.selector;
-    const el = previewElementFor(rule.selector);
-    if (state.selected && state.selected !== el && state.selected.classList) state.selected.classList.remove("__lyra-selected");
-    state.selected = el;
-    if (el) el.classList.add("__lyra-selected");
+    const els = highlightSelector(rule.selector);
+    state.matchCount = els.length;
+    state.selected = els[0] || null;
     renderInspector();
   }
   function addRuleDeclRow(host, rule, prop, value) {
@@ -496,7 +602,7 @@
     host.appendChild(row);
   }
   function renderCurrentRule(rule, el) {
-    $("devSelector").textContent = rule.selector + (el ? "  ·  预览已匹配" : "  ·  预览无匹配元素");
+    $("devSelector").textContent = rule.selector + (el ? "  ·  预览匹配 " + (state.matchCount || 1) + " 个" : "  ·  预览无匹配元素");
     const styleBox = $("devStyle");
     styleBox.innerHTML = "";
     const box = document.createElement("div"); box.className = "dev-rule";
@@ -625,9 +731,9 @@
         const rule = parseRuleAtCursor();
         if (rule) {
           state.rule = rule;
-          const el = previewElementFor(rule.selector);
-          state.selected = el;
-          if (el) el.classList.add("__lyra-selected");
+          const els = highlightSelector(rule.selector);
+          state.matchCount = els.length;
+          state.selected = els[0] || null;
         }
         renderInspector();
       }, 80);
@@ -638,8 +744,8 @@
     state.inspect = typeof force === "boolean" ? force : !state.inspect;
     $("inspectBtn").classList.toggle("active", state.inspect);
     if (!state.inspect) {
-      if (state.selected) state.selected.classList.remove("__lyra-selected");
-      state.selected = null; state.selectedSelector = "";
+      clearPreviewHighlights();
+      state.selected = null; state.selectedSelector = ""; state.matchCount = 0;
       setStatus("就绪");
       syncCursorRule();
     } else {
@@ -1017,6 +1123,14 @@
     closeColorPicker();
   }
 
+  function showDevTab(name) {
+    document.querySelectorAll(".dev-tab").forEach((t) => t.classList.toggle("active", t.dataset.dev === name));
+    $("devStyle").hidden = name !== "style";
+    $("devComputed").hidden = name !== "computed";
+    $("devVars").hidden = name !== "vars";
+    if (name === "vars") renderVars();
+  }
+
   function bind() {
     $("save").addEventListener("click", () => saveFile(false));
     $("format").addEventListener("click", () => { cm.setValue(formatCss(cm.getValue())); markDirty(); updatePreview(); setStatus("已格式化"); });
@@ -1051,11 +1165,7 @@
       $("inspectBtn").classList.remove("active");
       renderInspector();
     });
-    document.querySelectorAll(".dev-tab").forEach((tab) => tab.addEventListener("click", () => {
-      document.querySelectorAll(".dev-tab").forEach((t) => t.classList.toggle("active", t === tab));
-      $("devStyle").hidden = tab.dataset.dev !== "style";
-      $("devComputed").hidden = tab.dataset.dev !== "computed";
-    }));
+    document.querySelectorAll(".dev-tab").forEach((tab) => tab.addEventListener("click", () => showDevTab(tab.dataset.dev)));
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && !$("colorPopover").hidden) { closeColorPicker(); return; }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
@@ -1069,6 +1179,9 @@
         event.preventDefault();
         if (cm && !cm.state.completionActive) cm.showHint({ hint: lyraCssHint, completeSingle: false });
         return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "v") {
+        event.preventDefault(); showDevTab("vars"); return;
       }
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -1108,7 +1221,7 @@
       },
     });
     cm.on("change", (cm, change) => {
-      markDirty(); scheduleAutoSave(); scheduleColorChips();
+      markDirty(); scheduleAutoSave(); scheduleColorChips(); scheduleVarsRender();
       // ★ 只有用户输入才自动弹补全：程序化修改（取色器写回/格式化/加载）不应弹提示
       if (change && change.origin === "+input") scheduleAutoHint();
       clearTimeout(state.statusTimer); state.statusTimer = setTimeout(refreshLint, 600); updatePreview();

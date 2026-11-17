@@ -34,12 +34,13 @@
     <div class="preview-card"><iframe id="preview"></iframe></div>
   </section>
   <aside id="inspectorPane">
-    <div class="pane-head"><span class="pane-dot preview"></span><span>CSS</span><span class="pane-meta">当前规则 / 计算</span></div>
+    <div class="pane-head"><span class="pane-dot preview"></span><span>CSS</span><span class="pane-meta">规则 / 计算 / 变量</span></div>
 <div id="devInspector" class="dev-inspector">
   <div class="dev-head"><span id="devSelector" class="dev-selector">未选择元素</span><button id="devClose" class="pane-btn" title="关闭检查">×</button></div>
-  <div class="dev-tabs"><button class="dev-tab active" data-dev="style" type="button">样式</button><button class="dev-tab" data-dev="computed" type="button">计算样式</button></div>
+  <div class="dev-tabs"><button class="dev-tab active" data-dev="style" type="button">样式</button><button class="dev-tab" data-dev="computed" type="button">计算样式</button><button class="dev-tab" data-dev="vars" type="button">变量</button></div>
   <div id="devStyle" class="dev-body"></div>
   <div id="devComputed" class="dev-body" hidden></div>
+  <div id="devVars" class="dev-body" hidden></div>
 </div>  </aside>
 </main>
 <div id="colorPopover" class="color-popover" hidden>
@@ -62,5 +63,5 @@
 <script src="vendor/codemirror/addon/edit/closebrackets.min.js"></script>
 <script src="vendor/codemirror/mode/css/css.min.js"></script>
 <script src="vendor/css-data.js"></script>
-<script src="app.js?v=1.0.35"></script>
+<script src="app.js?v=1.0.37"></script>
 </body></html>
