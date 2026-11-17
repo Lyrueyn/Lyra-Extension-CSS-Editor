@@ -7,7 +7,7 @@
   const pathParam = params.get("projectEntry") || params.get("path") || "";
   const host = window.chrome && window.chrome.webview;
   const shellPending = new Map();
-  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 38, lintSeq: 0, inspect: false, selected: null, selectedSelector: "", inspectBound: false, rule: null, colorChips: [], colorTarget: null, pickerColor: null, colorChipTimer: 0 };
+  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 38, lintSeq: 0, inspect: false, selected: null, selectedSelector: "", inspectBound: false, rule: null, colorTarget: null, pickerColor: null, colorChipTimer: 0 };
   const THEMES = new Set(["lyra", "violet", "emerald", "sunset", "sakura", "light"]);
   let cm = null;
 
@@ -888,59 +888,56 @@
   }
   function colorCss(c) { return "rgba(" + c.r + "," + c.g + "," + c.b + "," + Number(c.a.toFixed(3)) + ")"; }
 
-  // ================= 颜色色块（绝对 overlay：按 charCoords 定位，不参与编辑流，绝不撑歪代码） =================
+  // ================= 颜色色块（行号左侧 gutter：一行多个按顺序排列，不遮挡代码） =================
   function clearColorChips() {
-    for (const c of state.colorChips) { try { c.node.remove(); } catch { } }
-    state.colorChips = [];
-  }
-  function placeColorChips() {
-    if (!cm) return;
-    const er = cm.getWrapperElement().getBoundingClientRect();
-    for (const item of state.colorChips) {
-      try {
-        const co = cm.charCoords(cm.posFromIndex(item.ctx.to), "window");
-        const h = Math.max(0, co.bottom - co.top);
-        const top = co.top + Math.max(0, (h - 11) / 2);
-        const left = co.left + 3;
-        // 只画在编辑器视口内：长行横向滚动时，token 可能已跑到编辑区外，不能盖到预览上
-        const visible = top > er.top + 2 && top < er.bottom - 14 && left > er.left + 2 && left < er.right - 14;
-        item.node.style.display = visible ? "block" : "none";
-        if (visible) { item.node.style.left = left.toFixed(1) + "px"; item.node.style.top = top.toFixed(1) + "px"; }
-      } catch { item.node.style.display = "none"; }
-    }
+    if (cm) cm.clearGutter("css-colors");
   }
   function rebuildColorChips() {
     if (!cm) return;
     clearColorChips();
-    const overlay = $("colorOverlay");
-    if (!overlay) return;
     const text = cm.getValue();
     const re = /#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})\b|(?:rgb|hsl)a?\([^)]*\)/g;
+    const byLine = new Map();
     let m; let count = 0;
     while ((m = re.exec(text)) && count < 300) {
       if (inCommentAt(text, m.index)) continue;
       const lineStart = text.lastIndexOf("\n", m.index) + 1;
       const lineEndIdx = text.indexOf("\n", m.index);
-      const line = text.slice(lineStart, lineEndIdx < 0 ? text.length : lineEndIdx);
+      const lineText = text.slice(lineStart, lineEndIdx < 0 ? text.length : lineEndIdx);
       const col = m.index - lineStart;
-      const beforeToken = line.slice(Math.max(0, col - 24), col);
+      const beforeToken = lineText.slice(Math.max(0, col - 24), col);
       if (/url\([^)]*$/i.test(beforeToken)) continue;
       const c = parseColor(m[0]);
       if (!c) continue;
       const ctx = { from: m.index, to: m.index + m[0].length, raw: m[0], color: c };
-      const chip = document.createElement("span");
-      chip.className = "lyra-color-chip";
-      chip.title = m[0] + " · 点击修改";
-      chip.style.background = colorCss(c);
-      chip.addEventListener("mousedown", (event) => {
-        event.preventDefault(); event.stopPropagation();
-        openColorPicker(chip, ctx, chip.getBoundingClientRect());
-      });
-      overlay.appendChild(chip);
-      state.colorChips.push({ ctx, node: chip });
+      const lineNo = cm.posFromIndex(m.index).line;
+      if (!byLine.has(lineNo)) byLine.set(lineNo, []);
+      byLine.get(lineNo).push(ctx);
       count++;
     }
-    placeColorChips();
+    for (const [lineNo, list] of byLine) {
+      const wrap = document.createElement("div");
+      wrap.className = "css-color-gutter";
+      wrap.title = list.map((x) => x.raw).join("  ");
+      for (const ctx of list.slice(0, 4)) {
+        const s = document.createElement("span");
+        s.className = "css-line-swatch";
+        s.style.background = colorCss(ctx.color);
+        s.title = ctx.raw + " · 点击修改";
+        s.addEventListener("mousedown", (event) => {
+          event.preventDefault(); event.stopPropagation();
+          openColorPicker(s, ctx, s.getBoundingClientRect());
+        });
+        wrap.appendChild(s);
+      }
+      if (list.length > 4) {
+        const more = document.createElement("span");
+        more.className = "css-gutter-more";
+        more.textContent = "+" + (list.length - 4);
+        wrap.appendChild(more);
+      }
+      cm.setGutterMarker(lineNo, "css-colors", wrap);
+    }
   }
   function scheduleColorChips() {
     clearTimeout(state.colorChipTimer);
@@ -1100,7 +1097,7 @@
   function initEditor() {
     cm = CodeMirror.fromTextArea($("code"), {
       mode: "css", theme: "lyra", lineNumbers: true, matchBrackets: true, autoCloseBrackets: true,
-      foldGutter: true, gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter", "css-errors"],
+      foldGutter: true, gutters: ["css-colors", "CodeMirror-linenumbers", "CodeMirror-foldgutter", "css-errors"],
       styleActiveLine: true, indentUnit: 2, tabSize: 2, lineWrapping: false,
       extraKeys: {
         "Ctrl-S": () => saveFile(), "Cmd-S": () => saveFile(),
@@ -1185,8 +1182,6 @@
     updateCursor();
     setTimeout(syncCursorRule, 300);
     setTimeout(rebuildColorChips, 500);
-    cm.on("scroll", () => placeColorChips());
-    window.addEventListener("resize", () => { placeColorChips(); });
   }
   bind();
   try { applyTheme(localStorage.getItem("lyra.css.theme") || "lyra"); } catch { applyTheme("lyra"); }
