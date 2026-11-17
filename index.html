@@ -42,6 +42,16 @@
   <div id="devComputed" class="dev-body" hidden></div>
 </div>  </aside>
 </main>
+<div id="colorPopover" class="color-popover" hidden>
+  <div class="cp-title"><span>颜色</span><button id="cpClose" type="button" class="cp-close">×</button></div>
+  <div class="cp-preview" id="cpPreview"></div>
+  <div class="cp-row"><label>颜色</label><input type="color" id="cpNative"></div>
+  <div class="cp-row"><label>透明度</label><input type="range" id="cpAlpha" min="0" max="100" value="100"><span id="cpAlphaText">100%</span></div>
+  <div class="cp-row"><label>格式</label><select id="cpFormat"><option value="hex">HEX</option><option value="rgb">RGB</option><option value="hsl">HSL</option></select></div>
+  <div class="cp-row"><label>值</label><input type="text" id="cpText" spellcheck="false"></div>
+  <div class="cp-presets" id="cpPresets"></div>
+  <div class="cp-actions"><button id="cpApply" type="button">应用</button><button id="cpCancel" type="button" class="ghost">取消</button></div>
+</div>
 <script src="vendor/codemirror/codemirror.min.js"></script>
 <script src="vendor/codemirror/addon/hint/show-hint.min.js"></script>
 <script src="vendor/codemirror/addon/hint/css-hint.min.js"></script>
@@ -51,5 +61,6 @@
 <script src="vendor/codemirror/addon/edit/matchbrackets.min.js"></script>
 <script src="vendor/codemirror/addon/edit/closebrackets.min.js"></script>
 <script src="vendor/codemirror/mode/css/css.min.js"></script>
-<script src="app.js?v=1.0.21"></script>
+<script src="vendor/css-data.js"></script>
+<script src="app.js?v=1.0.29"></script>
 </body></html>

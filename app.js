@@ -7,7 +7,7 @@
   const pathParam = params.get("projectEntry") || params.get("path") || "";
   const host = window.chrome && window.chrome.webview;
   const shellPending = new Map();
-  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 38, lintSeq: 0, inspect: false, selected: null, selectedSelector: "", inspectBound: false, rule: null };
+  const state = { path: pathParam, dirty: false, statusTimer: 0, theme: "lyra", errorMarks: [], errorLines: [], autoTimer: 0, lastSaved: "", saving: false, split: 38, lintSeq: 0, inspect: false, selected: null, selectedSelector: "", inspectBound: false, rule: null, colorWidgets: [], colorTarget: null, pickerColor: null, colorChipTimer: 0 };
   const THEMES = new Set(["lyra", "violet", "emerald", "sunset", "sakura", "light"]);
   let cm = null;
 
@@ -648,10 +648,385 @@
       setStatus("检查模式：点击预览中的元素");
     }
   }
+  // ================= CSS 自动补全 =================
+  const CSS_DATA = window.LYRA_CSS_DATA || { props: {}, syntaxes: {} };
+  const TYPE_VALUES = {
+    color: ["var(--color-primary)", "#fff", "#000", "transparent", "currentColor", "rgba(0,0,0,.5)"],
+    length: ["0", "1px", "2px", "4px", "8px", "12px", "16px", ".5rem", "1rem", "100%", "100vw", "100vh"],
+    percentage: ["0%", "50%", "100%"],
+    number: ["0", "1", "2", "3", "0.5"],
+    integer: ["0", "1", "2", "3"],
+    angle: ["0deg", "45deg", "90deg", "180deg", "360deg", "0.25turn"],
+    time: ["0s", ".1s", ".2s", ".3s", "1s"],
+    url: ["url()", "none"],
+    image: ["none", "url()", "linear-gradient()", "radial-gradient()"],
+    position: ["center", "top", "bottom", "left", "right", "50% 50%"],
+    lineStyle: ["solid", "dashed", "dotted", "double", "none"],
+    display: ["block", "inline", "inline-block", "flex", "inline-flex", "grid", "inline-grid", "none", "contents", "flow-root"],
+    overflow: ["visible", "hidden", "auto", "scroll", "clip"],
+    visibility: ["visible", "hidden", "collapse"],
+  };
+  const VALUE_MAP = {
+    display: TYPE_VALUES.display,
+    position: ["static", "relative", "absolute", "fixed", "sticky"],
+    "flex-direction": ["row", "row-reverse", "column", "column-reverse"],
+    "flex-wrap": ["nowrap", "wrap", "wrap-reverse"],
+    "justify-content": ["flex-start", "flex-end", "center", "space-between", "space-around", "space-evenly", "start", "end"],
+    "align-items": ["stretch", "flex-start", "flex-end", "center", "baseline", "start", "end"],
+    "align-content": ["stretch", "flex-start", "flex-end", "center", "space-between", "space-around", "space-evenly", "start", "end"],
+    "text-align": ["left", "right", "center", "justify", "start", "end"],
+    "font-weight": ["100", "200", "300", "400", "500", "600", "700", "800", "900", "normal", "bold"],
+    "text-decoration": ["none", "underline", "overline", "line-through", "wavy"],
+    "white-space": ["normal", "nowrap", "pre", "pre-wrap", "pre-line", "break-spaces"],
+    "box-sizing": ["border-box", "content-box"],
+    "object-fit": ["fill", "contain", "cover", "none", "scale-down"],
+    "pointer-events": ["auto", "none"],
+    "cursor": ["auto", "default", "pointer", "text", "move", "grab", "grabbing", "not-allowed", "wait", "help", "zoom-in", "zoom-out"],
+    "background-repeat": ["repeat", "no-repeat", "repeat-x", "repeat-y", "space", "round"],
+    "background-size": ["auto", "cover", "contain", "100% 100%"],
+    "background-position": TYPE_VALUES.position,
+    "border-style": TYPE_VALUES.lineStyle,
+    "outline-style": TYPE_VALUES.lineStyle,
+    "overflow-x": TYPE_VALUES.overflow,
+    "overflow-y": TYPE_VALUES.overflow,
+    "visibility": TYPE_VALUES.visibility,
+    "transition-timing-function": ["ease", "linear", "ease-in", "ease-out", "ease-in-out", "step-start", "step-end", "cubic-bezier()"],
+    "animation-direction": ["normal", "reverse", "alternate", "alternate-reverse"],
+    "animation-fill-mode": ["none", "forwards", "backwards", "both"],
+    "mix-blend-mode": ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "difference", "exclusion"],
+  };
+  const COLOR_KEYWORDS = ["transparent", "currentColor", "white", "black", "red", "orange", "yellow", "green", "blue", "purple", "pink", "gray", "grey", "brown", "cyan", "magenta", "navy", "teal", "olive", "maroon", "gold", "silver", "violet", "indigo", "crimson", "tomato", "salmon", "khaki", "beige", "ivory", "lavender", "plum", "orchid", "skyblue", "steelblue", "slategray", "dimgray", "lightgray", "darkgray"];
+
+  function cssVariables() {
+    const names = [];
+    const text = cm ? cm.getValue() : "";
+    const re = /--([-\w]+)\s*:/g;
+    let m;
+    while ((m = re.exec(text)) && names.length < 160) if (!names.includes("--" + m[1])) names.push("--" + m[1]);
+    return names;
+  }
+  function varColorPairs() {
+    const out = [];
+    const text = cm ? cm.getValue() : "";
+    const re = /--([-\w]+)\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)|hsla?\([^)]*\))/g;
+    let m;
+    while ((m = re.exec(text)) && out.length < 80) {
+      const c = parseColor(m[2]);
+      if (c) out.push({ name: "--" + m[1], color: c });
+    }
+    return out;
+  }
+  function expandSyntax(syntax, depth) {
+    if (!syntax || depth > 3) return [];
+    const out = [];
+    for (const raw of String(syntax).split("|")) {
+      const alt = raw.trim();
+      if (!alt) continue;
+      if (alt.startsWith("<") && alt.endsWith(">")) {
+        const type = alt.slice(1, -1);
+        if (TYPE_VALUES[type]) out.push(...TYPE_VALUES[type]);
+        else if (CSS_DATA.syntaxes && CSS_DATA.syntaxes[type]) out.push(...expandSyntax(CSS_DATA.syntaxes[type], depth + 1));
+        else if (type === "color") out.push(...COLOR_KEYWORDS);
+      } else if (/^[a-zA-Z][-\w]*$/.test(alt)) out.push(alt);
+    }
+    return out;
+  }
+  function valuesForProperty(prop) {
+    const list = [];
+    const meta = CSS_DATA.props[prop];
+    if (meta && meta.syntax) list.push(...expandSyntax(meta.syntax, 0));
+    if (VALUE_MAP[prop]) list.push(...VALUE_MAP[prop]);
+    if (/color|background|border|outline|fill|stroke/.test(prop)) list.push(...COLOR_KEYWORDS);
+    if (/margin|padding|width|height|top|left|right|bottom|gap|radius|size|position/.test(prop)) list.push(...TYPE_VALUES.length);
+    if (/transition|animation/.test(prop)) list.push(...TYPE_VALUES.time, "ease", "linear", "infinite", "alternate");
+    if (meta && meta.initial && meta.initial !== "seeProse") list.push(meta.initial);
+    list.push(...cssVariables().map((v) => "var(" + v + ")"));
+    return [...new Set(list.filter(Boolean))];
+  }
+  function inCommentAt(text, index) {
+    const open = text.lastIndexOf("/*", index);
+    const close = text.lastIndexOf("*/", index);
+    return open > close;
+  }
+  function lyraCssHint(editor) {
+    const cursor = editor.getCursor();
+    const line = editor.getLine(cursor.line);
+    const before = line.slice(0, cursor.ch);
+    const token = editor.getTokenAt(cursor);
+    if (token.type && (token.type.includes("comment") || token.type.includes("string"))) return null;
+    const decl = before.match(/([-\w]+)\s*:\s*([^;{}]*)$/);
+    if (decl) {
+      const prop = decl[1].toLowerCase();
+      const valuePart = decl[2];
+      if (/var\(\s*--[-\w]*$/.test(valuePart)) {
+        const start = before.lastIndexOf("--", before.length);
+        return { list: cssVariables().map((v) => "var(" + v + ")").filter((v) => v.startsWith("var(--")), from: editor.posFromIndex(editor.indexFromPos(cursor) - (before.length - start)), to: cursor };
+      }
+      const startMatch = valuePart.match(/([-\w#.%]*)$/);
+      const prefix = startMatch ? startMatch[1] : "";
+      let list = valuesForProperty(prop);
+      if (/^#/.test(prefix)) list = ["#fff", "#000", "#66ccff", ...COLOR_KEYWORDS];
+      if (prefix && !/^#/.test(prefix)) list = list.filter((v) => v.toLowerCase().startsWith(prefix.toLowerCase()));
+      if (!list.length) list = valuesForProperty(prop).slice(0, 40);
+      const fromCh = Math.max(0, cursor.ch - prefix.length);
+      return { list: [...new Set(list)].slice(0, 300), from: CodeMirror.Pos(cursor.line, fromCh), to: cursor };
+    }
+    const word = (before.match(/([-\w]*)$/) || ["", ""])[1];
+    if (/^\s*\/\//.test(before) && !before.includes("{")) return null;
+    const props = Object.keys(CSS_DATA.props || {}).filter((p) => !word || p.startsWith(word));
+    const vars = cssVariables().filter((v) => !word || v.startsWith(word));
+    const common = ["display", "position", "margin", "padding", "color", "background", "border", "font-size", "width", "height", "flex", "gap", "grid-template-columns", "transition", "transform", "opacity"];
+    const list = [...new Set([...props, ...vars, ...(word ? [] : common)])].slice(0, 400);
+    return { list, from: CodeMirror.Pos(cursor.line, cursor.ch - word.length), to: cursor };
+  }
+  let autoHintTimer = 0;
+  function scheduleAutoHint() {
+    clearTimeout(autoHintTimer);
+    autoHintTimer = setTimeout(() => {
+      if (!cm || cm.state.completionActive) return;
+      const cur = cm.getCursor();
+      const line = cm.getLine(cur.line);
+      const before = line.slice(0, cur.ch);
+      if (!/[-\w#]$/.test(before)) return;
+      const token = cm.getTokenAt(cur);
+      if (token.type && (token.type.includes("comment") || token.type.includes("string"))) return;
+      if (!/[^\s]/.test(before)) return;
+      cm.showHint({ hint: lyraCssHint, completeSingle: false });
+    }, 120);
+  }
+
+  // ================= 颜色解析 / 格式化 =================
+  function parseColor(raw) {
+    if (!raw) return null;
+    let s = String(raw).trim();
+    let m = s.match(/^#([0-9a-fA-F]+)$/);
+    if (m) {
+      let h = m[1];
+      if (h.length === 3 || h.length === 4) h = h.split("").map((x) => x + x).join("");
+      if (h.length === 6 || h.length === 8) {
+        return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16), a: h.length === 8 ? parseInt(h.slice(6, 8), 16) / 255 : 1 };
+      }
+      return null;
+    }
+    m = s.match(/^rgba?\(([^)]+)\)$/i);
+    if (m) {
+      const parts = m[1].split(/[\s,\/]+/).filter(Boolean);
+      if (parts.length >= 3) {
+        const val = (x) => x.endsWith("%") ? parseFloat(x) * 2.55 : parseFloat(x);
+        const a = parts[3] == null ? 1 : (parts[3].endsWith("%") ? parseFloat(parts[3]) / 100 : parseFloat(parts[3]));
+        return { r: Math.max(0, Math.min(255, Math.round(val(parts[0])))), g: Math.max(0, Math.min(255, Math.round(val(parts[1])))), b: Math.max(0, Math.min(255, Math.round(val(parts[2])))), a: isNaN(a) ? 1 : Math.max(0, Math.min(1, a)) };
+      }
+      return null;
+    }
+    m = s.match(/^hsla?\(([^)]+)\)$/i);
+    if (m) {
+      const parts = m[1].split(/[\s,\/]+/).filter(Boolean);
+      if (parts.length >= 3) {
+        const h = ((parseFloat(parts[0]) % 360) + 360) % 360;
+        const sat = Math.max(0, Math.min(100, parseFloat(parts[1]))) / 100;
+        const light = Math.max(0, Math.min(100, parseFloat(parts[2]))) / 100;
+        const a = parts[3] == null ? 1 : (parts[3].endsWith("%") ? parseFloat(parts[3]) / 100 : parseFloat(parts[3]));
+        return { ...hslToRgb(h, sat, light), a: isNaN(a) ? 1 : Math.max(0, Math.min(1, a)) };
+      }
+      return null;
+    }
+    const el = document.createElement("span");
+    el.style.color = "";
+    el.style.color = s;
+    if (!el.style.color) return null;
+    el.style.position = "fixed";
+    el.style.opacity = "0";
+    document.body.appendChild(el);
+    const rgb = getComputedStyle(el).color;
+    el.remove();
+    return parseColor(rgb);
+  }
+  function hslToRgb(h, s, l) {
+    h /= 360;
+    const hue = (p, q, t) => {
+      if (t < 0) t += 1; if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    let r, g, b;
+    if (s === 0) r = g = b = l;
+    else {
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      const p = 2 * l - q;
+      r = hue(p, q, h + 1 / 3); g = hue(p, q, h); b = hue(p, q, h - 1 / 3);
+    }
+    return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+  }
+  function rgbToHsl(c) {
+    let r = c.r / 255, g = c.g / 255, b = c.b / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        default: h = (r - g) / d + 4;
+      }
+      h /= 6;
+    }
+    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+  }
+  function toHex(c) { return "#" + [c.r, c.g, c.b].map((x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0")).join(""); }
+  function formatColor(c, format) {
+    if (!c) return "";
+    if (format === "rgb") return c.a >= 0.999 ? "rgb(" + c.r + ", " + c.g + ", " + c.b + ")" : "rgba(" + c.r + ", " + c.g + ", " + c.b + ", " + Number(c.a.toFixed(3)) + ")";
+    if (format === "hsl") {
+      const h = rgbToHsl(c);
+      return c.a >= 0.999 ? "hsl(" + h.h + ", " + h.s + "%, " + h.l + "%)" : "hsla(" + h.h + ", " + h.s + "%, " + h.l + "%, " + Number(c.a.toFixed(3)) + ")";
+    }
+    if (c.a >= 0.999) return toHex(c);
+    return toHex(c) + Math.round(c.a * 255).toString(16).padStart(2, "0");
+  }
+  function colorCss(c) { return "rgba(" + c.r + "," + c.g + "," + c.b + "," + Number(c.a.toFixed(3)) + ")"; }
+
+  // ================= 颜色色块 =================
+  function clearColorWidgets() {
+    for (const w of state.colorWidgets) { try { w.clear(); } catch { } }
+    state.colorWidgets = [];
+  }
+  function rebuildColorChips() {
+    if (!cm) return;
+    clearColorWidgets();
+    const text = cm.getValue();
+    const re = /#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})\b|(?:rgb|hsl)a?\([^)]*\)/g;
+    let m; let count = 0;
+    while ((m = re.exec(text)) && count < 300) {
+      if (inCommentAt(text, m.index)) continue;
+      const lineStart = text.lastIndexOf("\n", m.index) + 1;
+      const lineEndIdx = text.indexOf("\n", m.index);
+      const line = text.slice(lineStart, lineEndIdx < 0 ? text.length : lineEndIdx);
+      const col = m.index - lineStart;
+      const beforeToken = line.slice(Math.max(0, col - 24), col);
+      if (/url\([^)]*$/i.test(beforeToken)) continue;
+      const c = parseColor(m[0]);
+      if (!c) continue;
+      const startIndex = m.index, endIndex = m.index + m[0].length, rawToken = m[0];
+      const from = cm.posFromIndex(startIndex), to = cm.posFromIndex(endIndex);
+      const chip = document.createElement("span");
+      chip.className = "lyra-color-chip";
+      chip.title = rawToken + " · 点击修改";
+      chip.style.background = colorCss(c);
+      chip.addEventListener("mousedown", (event) => {
+        event.preventDefault(); event.stopPropagation();
+        openColorPicker(chip, { from: startIndex, to: endIndex, raw: rawToken, color: c });
+      });
+      const handle = cm.addWidget({ line: to.line, ch: to.ch }, chip, false);
+      state.colorWidgets.push(handle); count++;
+    }
+  }
+  function scheduleColorChips() {
+    clearTimeout(state.colorChipTimer);
+    state.colorChipTimer = setTimeout(rebuildColorChips, 220);
+  }
+  function colorTokenAtCursor() {
+    if (!cm) return null;
+    const cur = cm.getCursor();
+    const line = cm.getLine(cur.line) || "";
+    const re = /#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})\b|(?:rgb|hsl)a?\([^)]*\)/g;
+    let m;
+    while ((m = re.exec(line))) {
+      if (cur.ch >= m.index && cur.ch <= m.index + m[0].length) {
+        const c = parseColor(m[0]);
+        if (!c) return null;
+        const start = cm.indexFromPos({ line: cur.line, ch: m.index });
+        return { from: start, to: start + m[0].length, raw: m[0], color: c };
+      }
+    }
+    return null;
+  }
+  function openColorPicker(chip, ctx, rectOverride) {
+    state.colorTarget = ctx;
+    state.pickerColor = { ...ctx.color };
+    const pop = $("colorPopover");
+    pop.hidden = false;
+    $("cpNative").value = toHex(ctx.color);
+    $("cpAlpha").value = String(Math.round(ctx.color.a * 100));
+    $("cpAlphaText").textContent = Math.round(ctx.color.a * 100) + "%";
+    $("cpFormat").value = /^#/.test(ctx.raw) ? "hex" : /^rgb/i.test(ctx.raw) ? "rgb" : "hsl";
+    $("cpText").value = ctx.raw;
+    updatePickerPreview();
+    const rect = rectOverride || chip.getBoundingClientRect();
+    let left = rect.left, top = rect.bottom + 7;
+    if (left + 260 > window.innerWidth) left = window.innerWidth - 266;
+    if (top + 360 > window.innerHeight) top = Math.max(8, rect.top - 360);
+    pop.style.left = Math.max(8, left) + "px";
+    pop.style.top = Math.max(8, top) + "px";
+    renderColorPresets();
+  }
+  function closeColorPicker() { $("colorPopover").hidden = true; state.colorTarget = null; }
+  function updatePickerPreview() {
+    const c = state.pickerColor;
+    if (!c) return;
+    const pv = $("cpPreview"); pv.innerHTML = "";
+    const inner = document.createElement("i");
+    inner.style.background = colorCss(c);
+    pv.appendChild(inner);
+    $("cpText").value = formatColor(c, $("cpFormat").value);
+  }
+  function renderColorPresets() {
+    const host = $("cpPresets"); host.innerHTML = "";
+    const seen = new Set();
+    const add = (name, c) => {
+      const key = toHex(c) + ":" + c.a;
+      if (seen.has(key)) return; seen.add(key);
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "cp-swatch"; b.title = name + " " + colorCss(c);
+      b.style.background = colorCss(c);
+      b.addEventListener("click", () => {
+        state.pickerColor = { ...c };
+        $("cpNative").value = toHex(c); $("cpAlpha").value = String(Math.round(c.a * 100)); $("cpAlphaText").textContent = Math.round(c.a * 100) + "%";
+        updatePickerPreview();
+      });
+      host.appendChild(b);
+    };
+    for (const { name, color } of varColorPairs()) add(name, color);
+    for (const [name, val] of [["天依蓝", "#66ccff"], ["白", "#ffffff"], ["黑", "#000000"], ["红", "#ff3b30"], ["绿", "#34c759"], ["黄", "#ffcc00"], ["紫", "#af52de"], ["灰", "#8e8e93"]]) add(name, parseColor(val));
+  }
+  function applyPickedColor() {
+    const ctx = state.colorTarget; if (!ctx || !cm) return;
+    const c = state.pickerColor; if (!c) return;
+    const next = formatColor(c, $("cpFormat").value);
+    const from = cm.posFromIndex(ctx.from), to = cm.posFromIndex(ctx.to);
+    cm.replaceRange(next, from, to);
+    markDirty(); scheduleAutoSave(); updatePreview();
+    closeColorPicker();
+  }
+
   function bind() {
     $("save").addEventListener("click", () => saveFile(false));
     $("format").addEventListener("click", () => { cm.setValue(formatCss(cm.getValue())); markDirty(); updatePreview(); setStatus("已格式化"); });
     $("theme").addEventListener("change", () => applyTheme($("theme").value));
+    $("cpNative").addEventListener("input", () => {
+      const c = parseColor($("cpNative").value);
+      if (c) { c.a = state.pickerColor ? state.pickerColor.a : 1; state.pickerColor = c; updatePickerPreview(); }
+    });
+    $("cpAlpha").addEventListener("input", () => {
+      if (!state.pickerColor) return;
+      state.pickerColor.a = Math.max(0, Math.min(1, Number($("cpAlpha").value) / 100));
+      $("cpAlphaText").textContent = $("cpAlpha").value + "%";
+      updatePickerPreview();
+    });
+    $("cpFormat").addEventListener("change", () => updatePickerPreview());
+    $("cpText").addEventListener("input", () => {
+      const c = parseColor($("cpText").value);
+      if (c) { state.pickerColor = c; $("cpNative").value = toHex(c); $("cpAlpha").value = String(Math.round(c.a * 100)); $("cpAlphaText").textContent = Math.round(c.a * 100) + "%"; const pv = $("cpPreview"); if (pv.firstChild) pv.firstChild.style.background = colorCss(c); }
+    });
+    $("cpApply").addEventListener("click", applyPickedColor);
+    $("cpCancel").addEventListener("click", closeColorPicker);
+    $("cpClose").addEventListener("click", closeColorPicker);
+    document.addEventListener("mousedown", (event) => {
+      const pop = $("colorPopover");
+      if (!pop.hidden && !pop.contains(event.target) && !event.target.closest(".lyra-color-chip")) closeColorPicker();
+    });
     $("previewRefresh").addEventListener("click", () => updatePreview());
     $("inspectBtn").addEventListener("click", () => toggleInspect());
     $("devClose").addEventListener("click", () => {
@@ -670,6 +1045,20 @@
         clearTimeout(state.autoTimer);
         state.dirty = cm.getValue() !== state.lastSaved;
         saveFile(false);
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === " " || event.code === "Space" || event.key.toLowerCase() === "h")) {
+        event.preventDefault();
+        if (cm && !cm.state.completionActive) cm.showHint({ hint: lyraCssHint, completeSingle: false });
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        const ctx = colorTokenAtCursor();
+        if (ctx) {
+          const co = cm.cursorCoords(true, "window");
+          openColorPicker(null, ctx, { left: co.left, top: co.bottom, width: 0, height: 0, right: co.left, bottom: co.bottom });
+        }
         return;
       }
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "c") {
@@ -700,7 +1089,12 @@
         "Ctrl-G": () => { const n = prompt("跳转到行"); if (n) cm.setCursor({ line: Math.max(0, parseInt(n, 10) - 1), ch: 0 }); },
       },
     });
-    cm.on("change", () => { markDirty(); scheduleAutoSave(); clearTimeout(state.statusTimer); state.statusTimer = setTimeout(refreshLint, 600); updatePreview(); });
+    cm.on("change", (cm, change) => {
+      markDirty(); scheduleAutoSave(); scheduleColorChips();
+      // ★ 只有用户输入才自动弹补全：程序化修改（取色器写回/格式化/加载）不应弹提示
+      if (change && change.origin === "+input") scheduleAutoHint();
+      clearTimeout(state.statusTimer); state.statusTimer = setTimeout(refreshLint, 600); updatePreview();
+    });
     cm.setSize("100%", "100%");
     try {
       const savedSplit = parseFloat(localStorage.getItem("lyra.css.split2") || "");
@@ -769,6 +1163,7 @@
     });
     updateCursor();
     setTimeout(syncCursorRule, 300);
+    setTimeout(rebuildColorChips, 500);
   }
   bind();
   try { applyTheme(localStorage.getItem("lyra.css.theme") || "lyra"); } catch { applyTheme("lyra"); }
