@@ -30,7 +30,7 @@
   </div>
   <div id="splitter" title="拖动调整宽度"></div>
   <section id="previewPane">
-    <div class="pane-head"><span class="pane-dot preview"></span><span>实时预览</span><button id="inspectBtn" class="pane-btn inspect" title="检查预览元素样式 (Ctrl+Shift+C)">检查样式</button><button id="previewRefresh" class="pane-btn" title="刷新预览">↻</button><span class="pane-meta" id="previewInfo">自动刷新</span></div>
+    <div class="pane-head"><span class="pane-dot preview"></span><span>实时预览</span><div class="preview-actions"><button id="inspectBtn" class="ghost inspect-toggle" title="检查元素样式 (Ctrl+Shift+C)"><span class="inspect-ico"></span>Inspect</button><button id="previewRefresh" class="ghost preview-refresh" title="刷新预览">↻</button><span class="pane-meta" id="previewInfo">自动刷新</span></div></div>
     <div class="preview-card"><iframe id="preview"></iframe></div>
   </section>
   <aside id="inspectorPane">
@@ -63,5 +63,5 @@
 <script src="vendor/codemirror/addon/edit/closebrackets.min.js"></script>
 <script src="vendor/codemirror/mode/css/css.min.js"></script>
 <script src="vendor/css-data.js"></script>
-<script src="app.js?v=1.0.37"></script>
+<script src="app.js?v=1.0.38"></script>
 </body></html>

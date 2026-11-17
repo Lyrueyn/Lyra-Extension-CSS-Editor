@@ -335,6 +335,45 @@
     for (const c of Array.from(el.classList || [])) if (!c.startsWith("__lyra")) out += "." + CSS.escape(c);
     return out;
   }
+  function inspectTip(doc) {
+    let tip = doc.getElementById("lyra-inspect-tip");
+    if (!tip) {
+      tip = doc.createElement("div");
+      tip.id = "lyra-inspect-tip";
+      tip.style.cssText = "position:fixed;z-index:2147483646;display:none;pointer-events:none;box-sizing:border-box;min-width:230px;max-width:360px;padding:8px 10px;border-radius:7px;border:1px solid #d0d7de;background:#fff;color:#202124;font:12px/1.45 'Microsoft YaHei','Segoe UI',sans-serif;box-shadow:0 8px 26px rgba(0,0,0,.22);";
+      (doc.body || doc.documentElement).appendChild(tip);
+    }
+    return tip;
+  }
+  function hideInspectTip(doc) { const tip = doc && doc.getElementById("lyra-inspect-tip"); if (tip) tip.style.display = "none"; }
+  function updateInspectTip(doc, el) {
+    if (!doc || !el || el.nodeType !== 1 || el === doc.documentElement || el === doc.body) return;
+    const tip = inspectTip(doc);
+    const win = doc.defaultView;
+    const cs = win.getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    const name = selectorFor(el);
+    const row = (k, v) => '<div style="display:flex;gap:12px;justify-content:space-between;line-height:1.6"><span style="color:#6b7280;flex:0 0 auto">' + k + '</span><span style="text-align:right;max-width:240px;overflow-wrap:anywhere">' + v + '</span></div>';
+    const colorSw = (value) => {
+      const c = parseColor(value);
+      return (c ? '<i style="display:inline-block;width:9px;height:9px;margin-right:5px;border-radius:2px;vertical-align:-1px;border:1px solid rgba(0,0,0,.25);background:' + colorCss(c) + '"></i>' : '') + escapeHtml(value);
+    };
+    const text = (el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 50);
+    tip.innerHTML = '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;color:#0b6aa8">' + escapeHtml(name) + '</span><span style="color:#6b7280;font-size:10px">' + Math.round(r.width) + ' × ' + Math.round(r.height) + '</span></div>' +
+      row("display", escapeHtml(cs.display + " · " + cs.position)) +
+      row("color", colorSw(cs.color)) +
+      row("background", colorSw(cs.backgroundColor)) +
+      row("font", escapeHtml(cs.fontSize + " / " + cs.lineHeight + " · " + cs.fontFamily.split(",")[0])) +
+      (text ? '<div style="margin-top:3px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(text) + '</div>' : "");
+    tip.style.display = "block";
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let left = r.left, top = r.bottom + 7;
+    if (top + th > win.innerHeight - 8) top = Math.max(8, r.top - th - 7);
+    if (left + tw > win.innerWidth - 8) left = win.innerWidth - tw - 8;
+    if (left < 8) left = 8;
+    tip.style.left = Math.round(left) + "px";
+    tip.style.top = Math.round(top) + "px";
+  }
   function setupPreviewDoc(doc) {
     if (!doc || doc.__lyraInspectorBound) return;
     doc.__lyraInspectorBound = true;
@@ -345,15 +384,18 @@
         if (hovered) hovered.classList.remove("__lyra-hover");
         hovered = event.target;
         hovered.classList.add("__lyra-hover");
+        updateInspectTip(doc, hovered);
       }, true);
       doc.addEventListener("mouseleave", () => {
         if (hovered) hovered.classList.remove("__lyra-hover");
         hovered = null;
+        hideInspectTip(doc);
       }, true);
     doc.addEventListener("click", (event) => {
       if (!state.inspect || !event.target || event.target.nodeType !== 1) return;
       event.preventDefault();
       event.stopPropagation();
+      hideInspectTip(doc);
       selectInspectElement(event.target);
     }, true);
   }
@@ -644,6 +686,59 @@
     const computed = $("devComputed");
     computed.innerHTML = el ? computedRows(el).map(([k, v]) => '<div class="dev-computed-row"><span class="k">' + escapeHtml(k) + '</span><span class="v">' + escapeHtml(v) + '</span></div>').join("") : '<div class="dev-empty">预览中没有匹配这个选择器的元素</div>';
   }
+  function renderSelectionSummary(el) {
+    const card = document.createElement("div"); card.className = "dev-sel-card";
+    const view = $("preview").contentWindow;
+    const r = el.getBoundingClientRect();
+    const cs = view.getComputedStyle(el);
+    const rules = collectMatchedRules(el);
+    const title = document.createElement("div"); title.className = "dev-sel-title";
+    const tag = document.createElement("span"); tag.className = "dev-sel-tag"; tag.textContent = selectorFor(el);
+    title.appendChild(tag);
+    if (rules.length) {
+      const jump = document.createElement("button"); jump.type = "button"; jump.className = "dev-sel-jump"; jump.textContent = "源码";
+      jump.addEventListener("click", () => {
+        const span = cssRuleSpan(rules[0].selectorText);
+        if (!span) return;
+        const pos = cm.posFromIndex(span.start); cm.setCursor(pos); cm.scrollIntoView(pos, 80); cm.focus();
+      });
+      title.appendChild(jump);
+    }
+    card.appendChild(title);
+    const meta = document.createElement("div"); meta.className = "dev-sel-meta";
+    meta.innerHTML = '<span><b>' + Math.round(r.width) + ' × ' + Math.round(r.height) + '</b></span><span>' + escapeHtml(cs.display) + '</span><span>' + escapeHtml(cs.position) + '</span><span>' + rules.length + ' 条规则</span>';
+    card.appendChild(meta);
+    const badges = document.createElement("div"); badges.className = "dev-sel-badges";
+    for (const [label, value] of [["color", cs.color], ["background", cs.backgroundColor]]) {
+      const c = parseColor(value);
+      if (!c) continue;
+      const b = document.createElement("span"); b.className = "dev-sel-badge";
+      const i = document.createElement("i"); i.style.background = colorCss(c);
+      b.appendChild(i); b.appendChild(document.createTextNode(label + " " + value));
+      badges.appendChild(b);
+    }
+    if (badges.childNodes.length) card.appendChild(badges);
+    return card;
+  }
+  function renderBoxModel(el) {
+    const view = $("preview").contentWindow;
+    const cs = view.getComputedStyle(el);
+    const px = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? (Math.round(n * 10) / 10) + "px" : "auto"; };
+    const quad = (prefix) => [cs[prefix + "Top"], cs[prefix + "Right"], cs[prefix + "Bottom"], cs[prefix + "Left"]].map(px).join(" ");
+    const r = el.getBoundingClientRect();
+    const contentW = Math.max(0, Math.round(r.width - parseFloat(cs.paddingLeft || 0) - parseFloat(cs.paddingRight || 0) - parseFloat(cs.borderLeftWidth || 0) - parseFloat(cs.borderRightWidth || 0)));
+    const contentH = Math.max(0, Math.round(r.height - parseFloat(cs.paddingTop || 0) - parseFloat(cs.paddingBottom || 0) - parseFloat(cs.borderTopWidth || 0) - parseFloat(cs.borderBottomWidth || 0)));
+    const wrap = document.createElement("div"); wrap.className = "dev-section";
+    const title = document.createElement("div"); title.className = "dev-section-title"; title.textContent = "盒模型"; wrap.appendChild(title);
+    const box = document.createElement("div"); box.className = "box-model";
+    box.innerHTML = '<div class="bm-layer bm-margin"><span class="bm-label">margin</span>' + quad("margin") +
+      '<div class="bm-layer bm-border"><span class="bm-label">border</span>' + quad("borderWidth") +
+      '<div class="bm-layer bm-padding"><span class="bm-label">padding</span>' + quad("padding") +
+      '<div class="bm-content">' + contentW + ' × ' + contentH + '</div></div></div></div>';
+    wrap.appendChild(box);
+    return wrap;
+  }
+
   function renderElementInspector(el) {
     if (!el) {
       $("devSelector").textContent = "未选择元素";
@@ -654,6 +749,8 @@
     $("devSelector").textContent = state.selectedSelector;
     const styleBox = $("devStyle");
     styleBox.innerHTML = "";
+    styleBox.appendChild(renderSelectionSummary(el));
+    styleBox.appendChild(renderBoxModel(el));
     const inline = el.getAttribute("style") || "";
     const inlineWrap = document.createElement("div");
     inlineWrap.className = "dev-inline";
@@ -745,6 +842,7 @@
     $("inspectBtn").classList.toggle("active", state.inspect);
     if (!state.inspect) {
       clearPreviewHighlights();
+      hideInspectTip($("preview").contentDocument);
       state.selected = null; state.selectedSelector = ""; state.matchCount = 0;
       setStatus("就绪");
       syncCursorRule();

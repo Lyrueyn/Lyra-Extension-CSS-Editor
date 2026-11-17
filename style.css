@@ -198,3 +198,32 @@ html[data-theme="light"] .color-popover,html[data-theme="sakura"] .color-popover
 .dev-var-new input{min-width:0;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:3px 5px;font:11px/1.4 Consolas,monospace;outline:none}
 .dev-var-new input:focus{border-color:var(--accent)}
 .dev-var-new button{background:var(--accent);border:0;border-radius:4px;color:#06121f;padding:3px 7px;font:11px/1.4 system-ui;cursor:pointer}
+
+/* ===== 预览区 Inspect（对齐 HTML 编辑器的轻量工具栏） ===== */
+.preview-actions{display:flex;align-items:center;gap:6px;margin-left:auto}
+.preview-actions .ghost{border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:5px;padding:3px 9px;font:11px/1.5 system-ui;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background .12s,border-color .12s,color .12s}
+.preview-actions .ghost:hover{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.preview-actions .ghost.active{background:var(--accent);border-color:var(--accent);color:#06121f;font-weight:600}
+html[data-theme="light"] .preview-actions .ghost.active{color:#fff}
+.inspect-ico{width:11px;height:11px;border:1.5px solid currentColor;border-radius:2px;position:relative;display:inline-block;flex:0 0 auto}
+.inspect-ico::after{content:"";position:absolute;right:-4px;bottom:-4px;width:6px;height:1.5px;background:currentColor;transform:rotate(45deg);transform-origin:left center}
+.preview-refresh{padding:3px 7px !important;font-size:13px !important}
+#previewInfo{margin-left:2px}
+/* 选中元素摘要 / 盒模型 */
+.dev-sel-card{border:1px solid var(--line);border-radius:7px;padding:8px 9px;margin-bottom:9px;background:var(--code-bg)}
+.dev-sel-title{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.dev-sel-tag{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--accent);font:12px/1.4 Consolas,monospace}
+.dev-sel-jump{border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:4px;padding:1px 6px;font:10px/1.5 system-ui;cursor:pointer}
+.dev-sel-jump:hover{color:var(--accent);border-color:var(--accent)}
+.dev-sel-meta{display:flex;flex-wrap:wrap;gap:4px 9px;color:var(--muted);font:10.5px/1.6 Consolas,monospace}
+.dev-sel-meta b{color:var(--text);font-weight:500}
+.dev-sel-badges{display:flex;gap:5px;margin-top:6px}
+.dev-sel-badge{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--muted);font:10px/1.5 Consolas,monospace}
+.dev-sel-badge i{display:inline-block;width:9px;height:9px;border-radius:2px;border:1px solid rgba(255,255,255,.35)}
+.box-model{margin:4px 0 10px;font:10.5px/1.35 Consolas,monospace;color:var(--muted);user-select:none}
+.bm-layer{padding:6px;border:1px dashed;text-align:center;border-radius:4px}
+.bm-margin{border-color:#e5a04c;background:rgba(229,160,76,.08)}
+.bm-border{border-color:#d8c26a;background:rgba(216,194,106,.08)}
+.bm-padding{border-color:#7fc98d;background:rgba(127,201,141,.08)}
+.bm-content{border:1px solid #66a9e8;background:rgba(102,169,232,.10);color:var(--text);padding:5px 4px;border-radius:3px}
+.bm-label{display:block;margin-bottom:3px;font-size:9px;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
