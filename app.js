@@ -418,24 +418,28 @@
     $("devSelector").textContent = state.selectedSelector;
     renderInspector();
   }
-  function collectMatchedRules(el) {
+  function collectMatchedRules(el, includeBase) {
     const out = [];
     const doc = $("preview").contentDocument;
     if (!doc || !el) return out;
-    const visit = (rules) => {
+    const visit = (rules, isBase) => {
       for (const rule of Array.from(rules || [])) {
         try {
           if (rule.type === CSSRule.STYLE_RULE) {
             let matched = false;
             try { matched = el.matches(rule.selectorText); } catch { }
-            if (matched) out.push(rule);
-          } else if (rule.cssRules) visit(rule.cssRules);
+            if (matched) { try { rule.__lyraBase = !!isBase; } catch { } out.push(rule); }
+          } else if (rule.cssRules) visit(rule.cssRules, isBase);
         } catch { }
       }
     };
     for (const sheet of Array.from(doc.styleSheets)) {
-      if (sheet.ownerNode && (sheet.ownerNode.id === "lyra-base-style" || sheet.ownerNode.id === "lyra-inspect-style")) continue;
-      try { visit(sheet.cssRules); } catch { }
+      if (!sheet.ownerNode) continue;
+      const oid = sheet.ownerNode.id;
+      if (oid === "lyra-inspect-style" || oid === "lyra-force-style" || oid === "lyra-color-style") continue;
+      const isBase = oid === "lyra-base-style";
+      if (isBase && !includeBase) continue;
+      try { visit(sheet.cssRules, isBase); } catch { }
     }
     return out;
   }
@@ -739,6 +743,113 @@
     const computed = $("devComputed");
     computed.innerHTML = el ? computedRows(el).map(([k, v]) => '<div class="dev-computed-row"><span class="k">' + escapeHtml(k) + '</span><span class="v">' + escapeHtml(v) + '</span></div>').join("") : '<div class="dev-empty">预览中没有匹配这个选择器的元素</div>';
   }
+  function splitSelectorList(text) {
+    const out = []; let depth = 0; let start = 0;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === "(" || ch === "[") depth++;
+      else if (ch === ")" || ch === "]") depth = Math.max(0, depth - 1);
+      else if (ch === "," && depth === 0) { out.push(text.slice(start, i)); start = i + 1; }
+    }
+    out.push(text.slice(start));
+    return out.map((x) => x.trim()).filter(Boolean);
+  }
+  function specificityOf(selector) {
+    let s = selector;
+    const ids = (s.match(/#[-\w]+/g) || []).length;
+    const attrs = (s.match(/\[[^\]]*\]/g) || []).length;
+    s = s.replace(/\[[^\]]*\]/g, " ");
+    const pseudoElems = (s.match(/::[-\w]+/g) || []).length;
+    s = s.replace(/::[-\w]+/g, " ");
+    const pseudoClasses = (s.match(/:[-\w]+/g) || []).length;
+    s = s.replace(/:[-\w]+(?:\([^)]*\))?/g, " ");
+    const classes = (s.match(/\.[-\w]+/g) || []).length;
+    s = s.replace(/\.[-\w]+/g, " ");
+    const elements = (s.replace(/\*/g, " ").match(/[a-zA-Z][-\w]*/g) || []).length + pseudoElems;
+    return [ids, classes + attrs + pseudoClasses, elements];
+  }
+  function ruleSpecificityFor(rule, el) {
+    let best = [0, 0, 0]; let bestSel = rule.selectorText || "";
+    for (const part of splitSelectorList(rule.selectorText || "")) {
+      let hit = false;
+      try { hit = el.matches(part); } catch { hit = false; }
+      if (!hit) continue;
+      const sp = specificityOf(part);
+      if (sp[0] > best[0] || (sp[0] === best[0] && (sp[1] > best[1] || (sp[1] === best[1] && sp[2] > best[2])))) { best = sp; bestSel = part; }
+    }
+    return { specificity: best, selector: bestSel };
+  }
+  function cascadeForElement(el) {
+    const userRules = collectMatchedRules(el, false);
+    const rules = collectMatchedRules(el, true);
+    const declared = new Set();
+    for (const rule of userRules) for (let i = 0; i < rule.style.length; i++) declared.add(rule.style[i]);
+    for (let i = 0; i < el.style.length; i++) declared.add(el.style[i]);
+    const winners = new Map();
+    const cmp = (a, b) => {
+      if (a.important !== b.important) return a.important ? 1 : -1;
+      for (let i = 0; i < 3; i++) if (a.specificity[i] !== b.specificity[i]) return a.specificity[i] - b.specificity[i];
+      return (a.order || 0) - (b.order || 0);
+    };
+    let order = 0;
+    for (const rule of rules) {
+      order++;
+      const meta = ruleSpecificityFor(rule, el);
+      for (let i = 0; i < rule.style.length; i++) {
+        const prop = rule.style[i];
+        const cand = {
+          prop, value: rule.style.getPropertyValue(prop),
+          important: rule.style.getPropertyPriority(prop) === "important",
+          specificity: meta.specificity, selector: meta.selector || rule.selectorText,
+          order, rule,
+        };
+        const old = winners.get(prop);
+        if (!old || cmp(cand, old) > 0) winners.set(prop, cand);
+      }
+    }
+    // 内联样式：特异性 1,0,0,0，普通声明高于普通作者规则；!important 作者规则仍可覆盖普通内联
+    for (let i = 0; i < el.style.length; i++) {
+      const prop = el.style[i];
+      const cand = {
+        prop, value: el.style.getPropertyValue(prop),
+        important: el.style.getPropertyPriority(prop) === "important",
+        specificity: [1, 0, 0, 0], selector: "element.style",
+        order: 1e9, rule: null, inline: true,
+      };
+      const old = winners.get(prop);
+      if (!old || cmp(cand, old) > 0) winners.set(prop, cand);
+    }
+    return { winners, declared };
+  }
+  function renderCascade(cascade, declared) {
+    const wrap = document.createElement("div"); wrap.className = "dev-section";
+    const entries = Array.from(cascade.values()).filter((c) => !declared || declared.has(c.prop) || c.inline).sort((a, b) => a.prop.localeCompare(b.prop));
+    const details = document.createElement("details"); details.className = "dev-cascade-details";
+    const sum = document.createElement("summary");
+    sum.innerHTML = '级联结果（最终生效） <span class="dev-cascade-count">' + entries.length + ' 项</span>';
+    details.appendChild(sum);
+    if (!entries.length) { const empty = document.createElement("div"); empty.className = "dev-empty"; empty.textContent = "没有匹配的声明"; details.appendChild(empty); wrap.appendChild(details); return wrap; }
+    const list = document.createElement("div"); list.className = "dev-cascade-list";
+    for (const c of entries) {
+      const row = document.createElement("div"); row.className = "dev-cascade-row";
+      const prop = document.createElement("span"); prop.className = "dev-cascade-prop"; prop.textContent = c.prop;
+      const val = document.createElement("span"); val.className = "dev-cascade-val"; val.textContent = c.value;
+      const src = document.createElement("span"); src.className = "dev-cascade-src"; src.textContent = (c.rule && c.rule.__lyraBase ? "内置 " : "") + c.selector;
+      src.title = "跳转到这条规则";
+      src.addEventListener("click", () => {
+        if (c.inline) return;
+        const span = cssRuleSpan(c.selector);
+        if (!span) return;
+        const pos = cm.posFromIndex(span.start); cm.setCursor(pos); cm.scrollIntoView(pos, 80); cm.focus();
+      });
+      row.appendChild(prop); row.appendChild(val); row.appendChild(src);
+      list.appendChild(row);
+    }
+    details.appendChild(list);
+    wrap.appendChild(details);
+    return wrap;
+  }
+
   function renderSelectionSummary(el) {
     const card = document.createElement("div"); card.className = "dev-sel-card";
     const view = $("preview").contentWindow;
@@ -815,6 +926,8 @@
     styleBox.innerHTML = "";
     styleBox.appendChild(renderSelectionSummary(el));
     styleBox.appendChild(renderBoxModel(el));
+    const cascade = cascadeForElement(el);
+    styleBox.appendChild(renderCascade(cascade.winners, cascade.declared));
     const inline = el.getAttribute("style") || "";
     const inlineWrap = document.createElement("div");
     inlineWrap.className = "dev-inline";
@@ -824,6 +937,8 @@
       row.innerHTML = '<span class="prop"></span><input type="text"><span class="del">×</span>';
       row.querySelector(".prop").textContent = decl;
       const inp = row.querySelector("input"); inp.value = el.style.getPropertyValue(decl);
+      const inWin = cascade.winners.get(decl);
+      if (inWin && !inWin.inline) { row.classList.add("overridden"); row.querySelector(".prop").title = "被 " + inWin.selector + " 覆盖"; }
       inp.addEventListener("change", () => { el.style.setProperty(decl, inp.value); });
       row.querySelector(".del").addEventListener("click", () => { el.style.removeProperty(decl); renderInspector(); });
       inlineWrap.appendChild(row);
@@ -848,7 +963,9 @@
       const box = document.createElement("div"); box.className = "dev-rule";
       const head = document.createElement("div"); head.className = "dev-rule-head";
       head.innerHTML = '<span class="sel"></span><span class="jump">跳转</span>';
+      const meta = ruleSpecificityFor(rule, el);
       head.querySelector(".sel").textContent = rule.selectorText;
+      head.querySelector(".jump").title = "特异性 " + meta.specificity.join(",");
       head.addEventListener("click", () => {
         const span = cssRuleSpan(rule.selectorText);
         if (span) { const pos = cm.posFromIndex(span.start); cm.setCursor(pos); cm.scrollIntoView(pos, 100); cm.focus(); }
@@ -860,6 +977,8 @@
         const row = document.createElement("div"); row.className = "dev-decl";
         row.innerHTML = '<span class="prop"></span><input type="text"><span class="del">×</span>';
         row.querySelector(".prop").textContent = prop;
+        const win = cascade.winners.get(prop);
+        if (win && win.rule !== rule) { row.classList.add("overridden"); row.querySelector(".prop").title = "被 " + win.selector + " 覆盖"; }
         const inp = row.querySelector("input"); inp.value = val;
         inp.addEventListener("change", () => {
           if (updateCssDeclaration(rule.selectorText, prop, inp.value)) {
